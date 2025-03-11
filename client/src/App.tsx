@@ -10,6 +10,9 @@ import Profile from "@/pages/profile";
 import Posts from "@/pages/posts";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
+import Discover from "@/pages/discover";
+import Library from "@/pages/library";
+import GoLive from "@/pages/go-live";
 
 function Router() {
   return (
@@ -19,6 +22,9 @@ function Router() {
       <Route path="/profile/:username" component={Profile} />
       <Route path="/posts" component={Posts} />
       <Route path="/settings" component={Settings} />
+      <Route path="/discover" component={Discover} />
+      <Route path="/library" component={Library} />
+      <Route path="/go-live" component={GoLive} />
       <Route component={NotFound} />
     </Switch>
   );
