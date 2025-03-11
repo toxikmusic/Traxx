@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -21,6 +21,24 @@ export const insertUserSchema = createInsertSchema(users).pick({
   displayName: true,
   bio: true,
   profileImageUrl: true
+});
+
+// User Settings model
+export const userSettings = pgTable("user_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  uiColor: text("ui_color").default("#8B5CF6"), // Default purple color
+  enableAutoplay: boolean("enable_autoplay").default(true),
+  defaultSortType: text("default_sort_type").default("recent"), // Options: recent, popular, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow()
+});
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
+  userId: true,
+  uiColor: true,
+  enableAutoplay: true,
+  defaultSortType: true
 });
 
 // Stream model
@@ -93,15 +111,45 @@ export const insertFollowSchema = createInsertSchema(follows).pick({
   followedId: true
 });
 
+// Post model (for user's images and text posts)
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  likeCount: integer("like_count").default(0),
+  commentCount: integer("comment_count").default(0),
+  postType: text("post_type").default("text"), // Options: text, image
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  tags: text("tags").array()
+});
+
+export const insertPostSchema = createInsertSchema(posts).pick({
+  userId: true,
+  title: true,
+  content: true,
+  imageUrl: true,
+  postType: true,
+  tags: true
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 
 export type Stream = typeof streams.$inferSelect;
 export type InsertStream = z.infer<typeof insertStreamSchema>;
 
 export type Track = typeof tracks.$inferSelect;
 export type InsertTrack = z.infer<typeof insertTrackSchema>;
+
+export type Post = typeof posts.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
 
 export type Genre = typeof genres.$inferSelect;
 export type InsertGenre = z.infer<typeof insertGenreSchema>;
