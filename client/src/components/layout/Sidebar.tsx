@@ -1,0 +1,81 @@
+import { Link } from "wouter";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { Separator } from "@/components/ui/separator";
+import { User, Genre } from "@shared/schema";
+
+export default function Sidebar() {
+  // Mock data for initial render
+  const followedChannels = [
+    { id: 1, username: "djshadow", displayName: "DJ Shadow", profileImageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad", isStreaming: true, streamTitle: "Late night beats" },
+    { id: 2, username: "basstheory", displayName: "Bass Theory", profileImageUrl: "https://images.unsplash.com/photo-1487180144351-b8472da7d491", isStreaming: false },
+    { id: 3, username: "melodichouse", displayName: "Melodic House", profileImageUrl: "https://images.unsplash.com/photo-1614680376408-81e91ffe3db7", isStreaming: true, streamTitle: "Studio session" },
+  ];
+
+  const genres = [
+    { id: 1, name: "Electronic" },
+    { id: 2, name: "Hip Hop" },
+    { id: 3, name: "Lo-Fi" },
+    { id: 4, name: "House" },
+    { id: 5, name: "Indie" },
+  ];
+
+  const { data: channelsData, isLoading: channelsLoading } = useQuery<User[]>({
+    queryKey: ['/api/channels/followed'],
+    enabled: false // Disable for now, we'll use mock data
+  });
+
+  const { data: genresData, isLoading: genresLoading } = useQuery<Genre[]>({
+    queryKey: ['/api/genres'],
+    enabled: false // Disable for now, we'll use mock data
+  });
+
+  const channels = channelsData || followedChannels;
+  const genreList = genresData || genres;
+
+  return (
+    <aside className="hidden md:flex flex-col w-60 bg-dark-200 fixed h-full border-r border-dark-100 pt-2">
+      <div className="p-3">
+        <h2 className="font-semibold text-lg mb-2">Channels</h2>
+        <div className="space-y-2">
+          {channels.map((channel) => (
+            <Link key={channel.id} href={`/profile/${channel.username}`}>
+              <a className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
+                <div className="relative">
+                  <Avatar className="w-9 h-9">
+                    <AvatarImage src={channel.profileImageUrl} />
+                    <AvatarFallback>{channel.displayName.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {channel.isStreaming && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#00b074] rounded-full border border-dark-200"></div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{channel.displayName}</p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {channel.isStreaming ? `Live: ${channel.streamTitle}` : 'Offline'}
+                  </p>
+                </div>
+              </a>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <Separator className="my-2 bg-dark-100" />
+
+      <div className="p-3">
+        <h2 className="font-semibold text-lg mb-2">Recommended Genres</h2>
+        <div className="flex flex-wrap gap-2">
+          {genreList.map((genre) => (
+            <Link key={genre.id} href={`/genre/${genre.name.toLowerCase()}`}>
+              <a className="px-3 py-1 text-sm bg-dark-100 hover:bg-primary/20 rounded-full transition">
+                {genre.name}
+              </a>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
