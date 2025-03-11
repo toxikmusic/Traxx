@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
 interface PostCardProps {
-  post: Post;
+  post: Post & { user?: { displayName: string; profileImageUrl: string | null } };
 }
 
 export default function PostCard({ post }: PostCardProps) {
