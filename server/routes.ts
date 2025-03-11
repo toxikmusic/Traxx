@@ -2,7 +2,14 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertUserSchema, insertStreamSchema, insertTrackSchema, insertFollowSchema } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertStreamSchema, 
+  insertTrackSchema, 
+  insertFollowSchema, 
+  insertUserSettingsSchema,
+  insertPostSchema 
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -188,6 +195,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await storage.decrementFollowerCount(followedId);
     
     res.status(204).send();
+  });
+  
+  // User Settings
+  app.get("/api/user-settings/:userId", async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    const settings = await storage.getUserSettings(userId);
+    if (!settings) {
+      // If no settings exist, create default ones
+      const defaultSettings = await storage.createUserSettings({
+        userId,
+        uiColor: "#8B5CF6",
+        enableAutoplay: true,
+        defaultSortType: "recent"
+      });
+      return res.json(defaultSettings);
+    }
+    
+    res.json(settings);
+  });
+  
+  app.post("/api/user-settings", async (req, res) => {
+    try {
+      const settingsData = insertUserSettingsSchema.parse(req.body);
+      const settings = await storage.createUserSettings(settingsData);
+      res.status(201).json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating user settings" });
+    }
+  });
+  
+  app.patch("/api/user-settings/:userId", async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    try {
+      const settingsData = req.body;
+      const settings = await storage.updateUserSettings(userId, settingsData);
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating user settings" });
+    }
+  });
+  
+  // Posts
+  app.get("/api/posts/recent", async (req, res) => {
+    const posts = await storage.getRecentPosts();
+    res.json(posts);
+  });
+  
+  app.get("/api/posts/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+    
+    const post = await storage.getPost(id);
+    
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    
+    res.json(post);
+  });
+  
+  app.get("/api/posts/user/:userId", async (req, res) => {
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    const posts = await storage.getPostsByUser(userId);
+    res.json(posts);
+  });
+  
+  app.post("/api/posts", async (req, res) => {
+    try {
+      const postData = insertPostSchema.parse(req.body);
+      const post = await storage.createPost(postData);
+      res.status(201).json(post);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid post data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating post" });
+    }
   });
   
   // Creators

@@ -7,6 +7,7 @@ import { AudioPlayerProvider } from "@/context/AudioPlayerContext";
 import Home from "@/pages/home";
 import Stream from "@/pages/stream";
 import Profile from "@/pages/profile";
+import Posts from "@/pages/posts";
 import NotFound from "@/pages/not-found";
 
 function Router() {
