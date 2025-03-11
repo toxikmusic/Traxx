@@ -276,8 +276,8 @@ export default function Home() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Discover Creators</h2>
-                <Link href="/creators">
-                  <a className="text-sm text-primary hover:underline">See All</a>
+                <Link href="/creators" className="text-sm text-primary hover:underline">
+                  See All
                 </Link>
               </div>
               

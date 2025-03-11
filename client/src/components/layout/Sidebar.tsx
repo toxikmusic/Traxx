@@ -69,7 +69,7 @@ export default function Sidebar() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{channel.displayName}</p>
                 <p className="text-xs text-gray-400 truncate">
-                  {channel.isStreaming ? `Live: ${channel.streamTitle}` : 'Offline'}
+                  {channel.isStreaming ? 'Live' : 'Offline'}
                 </p>
               </div>
             </Link>
