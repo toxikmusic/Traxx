@@ -199,8 +199,8 @@ export default function Home() {
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Featured Live Streams</h2>
-                <Link href="/streams">
-                  <a className="text-sm text-primary hover:underline">See All</a>
+                <Link href="/streams" className="text-sm text-primary hover:underline">
+                  See All
                 </Link>
               </div>
               
@@ -234,8 +234,8 @@ export default function Home() {
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Recent Uploads</h2>
-                <Link href="/tracks">
-                  <a className="text-sm text-primary hover:underline">See All</a>
+                <Link href="/tracks" className="text-sm text-primary hover:underline">
+                  See All
                 </Link>
               </div>
               
