@@ -8,6 +8,7 @@ import Home from "@/pages/home";
 import Stream from "@/pages/stream";
 import Profile from "@/pages/profile";
 import Posts from "@/pages/posts";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/stream/:id" component={Stream} />
       <Route path="/profile/:username" component={Profile} />
+      <Route path="/posts" component={Posts} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );
