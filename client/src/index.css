@@ -3,6 +3,42 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 262 83.3% 63.5%; /* Default purple */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262 83.3% 63.5%; /* Same as primary */
+    
+    /* These are variations of the primary color that can be used by the ThemeContext */
+    --primary-50: inherit;
+    --primary-100: inherit;
+    --primary-200: inherit;
+    --primary-300: inherit;
+    --primary-400: inherit;
+    --primary-500: inherit;
+    --primary-600: inherit;
+    --primary-700: inherit;
+    --primary-800: inherit;
+    --primary-900: inherit;
+    
+    --radius: 0.5rem;
+  }
+
   * {
     @apply border-border;
   }

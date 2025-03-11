@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserSettings, updateUserSettings } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTheme } from "@/context/ThemeContext";
 
 // Color options for UI theme
 const colorOptions = [
@@ -28,6 +29,7 @@ const sortOptions = [
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { primaryColor, setPrimaryColor } = useTheme();
   
   // For demo purposes, using a fixed user ID
   // In a real app, this would come from authentication
@@ -38,18 +40,24 @@ export default function SettingsPage() {
     queryFn: () => getUserSettings(userId),
   });
   
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(primaryColor);
   const [enableAutoplay, setEnableAutoplay] = useState<boolean | null>(null);
   const [sortType, setSortType] = useState<string | null>(null);
   
   // Initialize state from fetched settings
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setSelectedColor(settings.uiColor);
       setEnableAutoplay(settings.enableAutoplay);
       setSortType(settings.defaultSortType);
     }
-  });
+  }, [settings]);
+  
+  // Update theme context when color changes
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    setPrimaryColor(color);
+  };
   
   const updateSettingsMutation = useMutation({
     mutationFn: (data: any) => updateUserSettings(userId, data),
@@ -120,7 +128,7 @@ export default function SettingsPage() {
                             : "border-transparent"
                         }`}
                         style={{ backgroundColor: color.value }}
-                        onClick={() => setSelectedColor(color.value)}
+                        onClick={() => handleColorChange(color.value)}
                         title={color.name}
                       />
                     ))}
