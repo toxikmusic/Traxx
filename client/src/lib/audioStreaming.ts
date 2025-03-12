@@ -107,9 +107,10 @@ export class AudioStreamingService {
     try {
       this.streamKey = streamKey;
       
-      // Setup WebSocket connection for streaming
+      // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws?streamId=${streamId}&streamKey=${streamKey}&type=broadcaster`;
+      // Connect to our dedicated audio WebSocket with proper format
+      const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${streamKey}`;
       
       this.socket = new WebSocket(wsUrl);
       

@@ -207,49 +207,114 @@ export default function StreamPage() {
       try {
         setIsAudioConnected(false);
         
-        // Get stream URL from server based on streamId
+        // Connect to our dedicated audio WebSocket as a listener
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const audioStreamUrl = `${protocol}//${window.location.host}/audio/${streamId}`;
+        const audioWsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=listener`;
         
-        if (audioRef.current) {
-          audioRef.current.src = audioStreamUrl;
-          audioRef.current.volume = volume;
-          
-          // When connected
-          audioRef.current.onplaying = () => {
-            setIsAudioConnected(true);
-            toast({
-              title: "Audio stream connected",
-              description: "You are now listening to the live audio stream.",
-              variant: "default",
-            });
-          };
-          
-          // When disconnected
-          audioRef.current.onerror = () => {
-            setIsAudioConnected(false);
-            toast({
-              title: "Audio stream error",
-              description: "Failed to connect to audio stream. The stream may be offline.",
-              variant: "destructive",
-            });
-          };
-          
-          // Set up audio analyzer for visualization
-          if (canvasRef.current) {
-            // Register visualization handler
-            audioStreamingService.onVisualize((data) => {
-              setFrequencyData(data);
-              drawVisualization(data);
-            });
-            
-            // Register status change handler
-            audioStreamingService.onStatusChange((status) => {
-              setStreamStatus(status);
-              setViewerCount(status.viewerCount);
-            });
+        // Set up audio WebSocket connection
+        const audioSocket = new WebSocket(audioWsUrl);
+        
+        // Create audio context for processing incoming audio data
+        const audioContext = new AudioContext();
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = volume;
+        
+        // Create analyser for visualizations
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        // Connect gain node to analyser for visualization
+        gainNode.connect(analyser);
+        
+        // Connect analyser to destination for audio output
+        analyser.connect(audioContext.destination);
+        
+        // Handle WebSocket connection events
+        audioSocket.onopen = () => {
+          setIsAudioConnected(true);
+          toast({
+            title: "Audio stream connected",
+            description: "You are now listening to the live audio stream.",
+            variant: "default",
+          });
+        };
+        
+        // Handle incoming audio data
+        audioSocket.onmessage = async (event) => {
+          try {
+            if (event.data instanceof Blob) {
+              // Convert audio data to ArrayBuffer
+              const arrayBuffer = await event.data.arrayBuffer();
+              
+              // Decode audio data and play
+              audioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
+                // Create buffer source for playing audio
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                
+                // Connect to gain node (which is connected to analyser and destination)
+                source.connect(gainNode);
+                
+                // Start playback
+                source.start(0);
+                
+                // Get visualization data
+                analyser.getByteFrequencyData(dataArray);
+                setFrequencyData(new Uint8Array(dataArray));
+                drawVisualization(dataArray);
+              });
+            }
+          } catch (error) {
+            console.error("Error processing audio data:", error);
           }
-        }
+        };
+        
+        // Handle connection close
+        audioSocket.onclose = () => {
+          setIsAudioConnected(false);
+          toast({
+            title: "Audio stream ended",
+            description: "The broadcaster has ended the stream.",
+          });
+        };
+        
+        // Handle connection errors
+        audioSocket.onerror = () => {
+          setIsAudioConnected(false);
+          toast({
+            title: "Audio stream error",
+            description: "Failed to connect to audio stream. The stream may be offline.",
+            variant: "destructive",
+          });
+        };
+        
+        // Set up regular visualization updates
+        const updateVisualization = () => {
+          if (isAudioConnected && canvasRef.current) {
+            analyser.getByteFrequencyData(dataArray);
+            setFrequencyData(new Uint8Array(dataArray)); 
+            drawVisualization(dataArray);
+          }
+          
+          // Continue animation loop
+          requestAnimationFrame(updateVisualization);
+        };
+        
+        // Start visualization
+        updateVisualization();
+        
+        // Return cleanup function
+        return () => {
+          if (audioSocket && audioSocket.readyState === WebSocket.OPEN) {
+            audioSocket.close();
+          }
+          
+          if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+          }
+        };
+        
       } catch (error) {
         console.error("Error setting up audio stream:", error);
         toast({
@@ -257,6 +322,8 @@ export default function StreamPage() {
           description: "Failed to connect to audio stream.",
           variant: "destructive",
         });
+        
+        return () => {}; // Return empty cleanup function
       }
     };
     
@@ -302,7 +369,7 @@ export default function StreamPage() {
         audioRef.current.src = '';
       }
     };
-  }, [streamId, volume, toast]);
+  }, [streamId, volume, toast, drawVisualization]);
   
   // Initialize UI and scroll chat to bottom on load
   useEffect(() => {
