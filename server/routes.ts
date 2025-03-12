@@ -692,63 +692,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Raw post request body:", JSON.stringify(req.body));
       
-      // Use authenticated user ID
-      const postData = {
-        ...req.body,
-        userId: req.user.id
+      // Prepare post data
+      const rawData = req.body;
+      
+      // Build a clean post object with proper defaults
+      const postData: {
+        userId: number;
+        title: string;
+        content: string;
+        postType: typeof PostType[keyof typeof PostType];
+        imageUrl?: string | null;
+        tags?: string[];
+      } = {
+        userId: req.user.id,
+        title: typeof rawData.title === 'string' ? rawData.title : '',
+        content: typeof rawData.content === 'string' ? rawData.content : '',
+        postType: rawData.postType === PostType.IMAGE ? PostType.IMAGE : PostType.TEXT,
+        tags: []
       };
       
-      // Ensure postType is a valid enum value
-      if (postData.postType !== PostType.TEXT && postData.postType !== PostType.IMAGE) {
-        // Default to TEXT if missing or invalid
-        postData.postType = PostType.TEXT;
+      // Handle imageUrl properly
+      if (typeof rawData.imageUrl === 'string' && rawData.imageUrl) {
+        postData.imageUrl = rawData.imageUrl;
       }
       
-      // Ensure tags is properly handled as an array
-      if (!postData.tags) {
-        postData.tags = [];
-      } else if (!Array.isArray(postData.tags)) {
-        try {
-          // If it's a JSON string, parse it
-          if (typeof postData.tags === 'string') {
-            postData.tags = JSON.parse(postData.tags);
-          } else {
-            // Convert to array if it's something else
-            postData.tags = [String(postData.tags)];
-          }
-        } catch (e) {
-          // If parsing fails, convert to empty array
-          postData.tags = [];
-        }
+      // Handle tags properly
+      if (Array.isArray(rawData.tags)) {
+        postData.tags = rawData.tags.filter((tag: any) => typeof tag === 'string');
       }
       
-      // Create a custom schema with more specific validation requirements
-      const extendedPostSchema = z.object({
-        userId: z.number(),
-        title: z.string().min(1, "Title is required"),
-        content: z.string().min(1, "Content is required"),
-        postType: z.enum([PostType.TEXT, PostType.IMAGE], { 
-          errorMap: () => ({ message: "Post type must be 'text' or 'image'" }) 
-        }),
-        tags: z.array(z.string()).optional().default([]),
-        imageUrl: z.string().nullable().optional(),
-      });
+      // Simple direct validations (avoiding schema for now as debug)
+      if (!postData.title) {
+        return res.status(400).json({ message: "Title is required" });
+      }
       
-      console.log("Processing post with prepared data:", JSON.stringify(postData));
+      if (!postData.content) {
+        return res.status(400).json({ message: "Content is required" });
+      }
       
-      const validatedData = extendedPostSchema.parse(postData);
-      console.log("Validated post data:", JSON.stringify(validatedData));
+      console.log("Final post data for storage:", JSON.stringify(postData));
       
-      const post = await storage.createPost(validatedData);
+      const post = await storage.createPost(postData);
       res.status(201).json(post);
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Zod validation error:", JSON.stringify(error.errors));
-        return res.status(400).json({ 
-          message: "Invalid post data: " + error.errors.map(e => e.message).join(", "), 
-          errors: error.errors 
-        });
-      }
       console.error("Error creating post:", error);
       res.status(500).json({ 
         message: "Error creating post: " + (error instanceof Error ? error.message : "Unknown error"),
