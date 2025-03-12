@@ -31,9 +31,8 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { primaryColor, setPrimaryColor } = useTheme();
   
-  // For demo purposes, using a fixed user ID
-  // In a real app, this would come from authentication
-  const userId = 1;
+  // Get the authenticated user's ID
+  const { user } = useAuth();
   
   const { data: settings, isLoading } = useQuery({
     queryKey: ['/api/user-settings', userId],

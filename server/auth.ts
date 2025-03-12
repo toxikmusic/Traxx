@@ -97,6 +97,14 @@ export function setupAuth(app: Express) {
         password: hashedPassword,
       });
 
+      // Automatically create default user settings for the new user
+      await storage.createUserSettings({
+        userId: user.id,
+        uiColor: "#7c3aed", // Default purple theme
+        enableAutoplay: true,
+        defaultSortType: "recent"
+      });
+
       req.login(user, (err) => {
         if (err) return next(err);
         // Send user without password
