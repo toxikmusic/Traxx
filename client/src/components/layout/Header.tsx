@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import SearchBar from "@/components/ui/search-bar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
@@ -11,14 +12,19 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Search, Compass, Video, ChevronDown } from 'lucide-react';
+import { Search, Compass, Video, ChevronDown, Loader2 } from 'lucide-react';
 
 export default function Header() {
   const [, setLocation] = useLocation();
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const { user, logoutMutation } = useAuth();
 
   const toggleMobileSearch = () => {
     setMobileSearchOpen(!mobileSearchOpen);
+  };
+  
+  const handleLogout = () => {
+    logoutMutation.mutate();
   };
 
   return (
@@ -63,16 +69,20 @@ export default function Header() {
               <DropdownMenuTrigger className="focus:outline-none">
                 <div className="flex items-center space-x-2">
                   <Avatar className="w-8 h-8 border border-dark-100">
-                    <AvatarImage src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?ixlib=rb-1.2.1&auto=format&fit=crop&w=40&h=40&q=80" />
-                    <AvatarFallback>U</AvatarFallback>
+                    {user?.profileImageUrl ? (
+                      <AvatarImage src={user.profileImageUrl} />
+                    ) : null}
+                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                   </Avatar>
                   <ChevronDown className="h-4 w-4 text-gray-400 hidden md:block" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {user ? user.displayName : 'My Account'}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocation("/profile/user123")}>
+                <DropdownMenuItem onClick={() => setLocation(`/profile/${user?.username}`)}>
                   Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setLocation("/settings")}>
@@ -82,8 +92,13 @@ export default function Header() {
                   My Library
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  Sign out
+                <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
+                  {logoutMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing out...
+                    </>
+                  ) : "Sign out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
