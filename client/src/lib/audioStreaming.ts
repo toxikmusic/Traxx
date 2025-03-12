@@ -17,6 +17,7 @@ export interface StreamStatus {
   viewerCount: number;
   startTime?: Date;
   peakViewerCount: number;
+  audioLevel?: number; // Current audio level in dB
 }
 
 // Default audio settings for good quality music streaming
@@ -105,6 +106,12 @@ export class AudioStreamingService {
     }
     
     try {
+      // Close any existing connection
+      if (this.socket) {
+        this.socket.close();
+        this.socket = null;
+      }
+      
       this.streamKey = streamKey;
       
       // Setup WebSocket connection for audio streaming
@@ -112,70 +119,120 @@ export class AudioStreamingService {
       // Connect to our dedicated audio WebSocket with proper format
       const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${streamKey}`;
       
+      console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
       this.socket = new WebSocket(wsUrl);
       
-      this.socket.onopen = () => {
-        // Start audio processing and sending to websocket when connected
-        this.startAudioProcessing();
+      // Set a connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+          console.error("WebSocket connection timeout");
+          this.socket.close();
+          this.notifyStatusChange();
+        }
+      }, 10000); // 10 seconds timeout
+      
+      return new Promise<boolean>((resolve) => {
+        if (!this.socket) {
+          resolve(false);
+          return;
+        }
         
-        // Update stream status
-        this.streamStatus = {
-          ...this.streamStatus,
-          isLive: true,
-          streamId,
-          startTime: new Date(),
-          viewerCount: 0,
-          peakViewerCount: 0
+        this.socket.onopen = () => {
+          console.log("Audio WebSocket connection established");
+          clearTimeout(connectionTimeout);
+          
+          // Start audio processing and sending to websocket when connected
+          this.startAudioProcessing();
+          
+          // Update stream status
+          this.streamStatus = {
+            ...this.streamStatus,
+            isLive: true,
+            streamId,
+            startTime: new Date(),
+            viewerCount: 0,
+            peakViewerCount: 0
+          };
+          
+          this.notifyStatusChange();
+          
+          // Setup connection checking
+          this.connectionCheckInterval = setInterval(() => {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              this.socket.send(JSON.stringify({ type: 'ping' }));
+            } else {
+              // Try to reconnect if connection is lost
+              console.log("Connection check failed, attempting to reconnect");
+              this.startStreaming(streamId, streamKey);
+            }
+          }, 30000); // Check every 30 seconds
+          
+          resolve(true);
         };
         
-        this.notifyStatusChange();
-        
-        // Setup connection checking
-        this.connectionCheckInterval = setInterval(() => {
-          if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, 30000);
-      };
-      
-      this.socket.onclose = () => {
-        this.stopStreaming();
-      };
-      
-      this.socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        this.stopStreaming();
-      };
-      
-      this.socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+        this.socket.onclose = (event) => {
+          console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+          clearTimeout(connectionTimeout);
+          this.stopStreaming();
           
-          switch (data.type) {
-            case 'viewer_count':
-              const newCount = data.viewerCount || 0;
-              this.streamStatus.viewerCount = newCount;
-              this.streamStatus.peakViewerCount = Math.max(
-                this.streamStatus.peakViewerCount,
-                newCount
-              );
-              this.notifyStatusChange();
-              break;
-              
-            case 'stream_status':
-              // Handle stream status updates
-              break;
-              
-            case 'error':
-              console.error("Stream error:", data.message);
-              break;
+          if (this.streamStatus.isLive) {
+            // Connection was lost after successful start
+            console.log("Connection lost, stream was active");
+            this.streamStatus.isLive = false;
+            this.notifyStatusChange();
           }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
-        }
-      };
-      
-      return true;
+          
+          resolve(false);
+        };
+        
+        this.socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          clearTimeout(connectionTimeout);
+          this.stopStreaming();
+          resolve(false);
+        };
+        
+        this.socket.onmessage = (event) => {
+          try {
+            // Check if it's a text message (control message)
+            if (typeof event.data === 'string') {
+              const data = JSON.parse(event.data);
+              
+              switch (data.type) {
+                case 'viewer_count':
+                  const newCount = data.viewerCount || 0;
+                  this.streamStatus.viewerCount = newCount;
+                  this.streamStatus.peakViewerCount = Math.max(
+                    this.streamStatus.peakViewerCount,
+                    newCount
+                  );
+                  this.notifyStatusChange();
+                  break;
+                  
+                case 'stream_status':
+                  if (data.isLive !== undefined) {
+                    this.streamStatus.isLive = data.isLive;
+                  }
+                  if (data.viewerCount !== undefined) {
+                    this.streamStatus.viewerCount = data.viewerCount;
+                  }
+                  this.notifyStatusChange();
+                  break;
+                  
+                case 'error':
+                  console.error("Stream error:", data.message);
+                  break;
+                  
+                case 'pong':
+                  // Server responded to our ping
+                  break;
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing WebSocket message:", error);
+          }
+        };
+      });
     } catch (error) {
       console.error("Error starting streaming:", error);
       return false;

@@ -300,27 +300,56 @@ export default function StreamPage() {
         // Handle incoming audio data
         audioSocket.onmessage = async (event) => {
           try {
-            if (event.data instanceof Blob) {
-              // Convert audio data to ArrayBuffer
-              const arrayBuffer = await event.data.arrayBuffer();
+            // Check if we received binary data
+            if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
+              let arrayBuffer: ArrayBuffer;
+              
+              // Convert to ArrayBuffer if needed
+              if (event.data instanceof Blob) {
+                arrayBuffer = await event.data.arrayBuffer();
+              } else {
+                arrayBuffer = event.data;
+              }
               
               // Decode audio data and play
-              audioContext.decodeAudioData(arrayBuffer, (audioBuffer) => {
-                // Create buffer source for playing audio
-                const source = audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                
-                // Connect to gain node (which is connected to analyser and destination)
-                source.connect(gainNode);
-                
-                // Start playback
-                source.start(0);
-                
-                // Get visualization data
-                analyser.getByteFrequencyData(dataArray);
-                setFrequencyData(new Uint8Array(dataArray));
-                drawVisualization(dataArray);
-              });
+              audioContext.decodeAudioData(
+                arrayBuffer, 
+                (audioBuffer) => {
+                  // Create buffer source for playing audio
+                  const source = audioContext.createBufferSource();
+                  source.buffer = audioBuffer;
+                  
+                  // Connect to gain node (which is connected to analyser and destination)
+                  source.connect(gainNode);
+                  
+                  // Start playback
+                  source.start(0);
+                  
+                  // Get visualization data
+                  analyser.getByteFrequencyData(dataArray);
+                  setFrequencyData(new Uint8Array(dataArray));
+                  drawVisualization(dataArray);
+                },
+                (error) => {
+                  console.error("Error decoding audio data:", error);
+                }
+              );
+            } else if (typeof event.data === 'string') {
+              // Handle possible control messages
+              try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'stream_status') {
+                  setStreamStatus({
+                    isLive: message.isLive || false,
+                    viewerCount: message.viewerCount || 0,
+                    peakViewerCount: message.peakViewerCount || 0,
+                    streamId: message.streamId,
+                    startTime: message.startTime ? new Date(message.startTime) : undefined
+                  });
+                }
+              } catch (e) {
+                console.error("Error parsing control message:", e);
+              }
             }
           } catch (error) {
             console.error("Error processing audio data:", error);
