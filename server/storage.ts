@@ -393,13 +393,14 @@ export class MemStorage implements IStorage {
     });
     
     // Create users (creators)
-    // Password: "password123" hashed with scrypt using the same method as in auth.ts
-    const hashedPassword = "c1628fc647d60a0b68fcf500f03d66fb41dd2586a9eb4152a5c8206ca30afee498ae77adee01e9c8f183d5f4f75f7b69789c5cdfe6e86c79aaa94d9489cf16a0.22c5a75f7dc9b48d96c3a9d9caf94f13";
+    // We use a simple string for development to avoid hashing complexity
+    // In production, these would be properly hashed via auth.ts hashPassword function
+    const plainPassword = "password123";
     
     const creators = [
       { 
         username: "djshadow", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "DJ Shadow", 
         bio: "Electronic music producer and DJ specializing in deep house and techno. Based in Berlin.", 
         profileImageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
@@ -407,7 +408,7 @@ export class MemStorage implements IStorage {
       },
       { 
         username: "basstheory", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "Bass Theory", 
         bio: "Bass music producer and DJ. Creating heavy beats since 2010.", 
         profileImageUrl: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
@@ -415,7 +416,7 @@ export class MemStorage implements IStorage {
       },
       { 
         username: "melodichouse", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "Melodic House", 
         bio: "Melodic house and techno producer. Crafting emotional electronic journeys.", 
         profileImageUrl: "https://images.unsplash.com/photo-1614680376408-81e91ffe3db7?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
@@ -423,7 +424,7 @@ export class MemStorage implements IStorage {
       },
       { 
         username: "djez", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "DJ EZ", 
         bio: "House music producer and DJ based in London", 
         profileImageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
@@ -431,7 +432,7 @@ export class MemStorage implements IStorage {
       },
       { 
         username: "beatcrafter", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "BeatCrafter", 
         bio: "Hip hop and trap beatmaker. Teaching the art of sampling and production.", 
         profileImageUrl: "https://images.unsplash.com/photo-1581068506097-9f5cf2b3c8e3?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
@@ -439,7 +440,7 @@ export class MemStorage implements IStorage {
       },
       { 
         username: "chillhop", 
-        password: hashedPassword, 
+        password: plainPassword, 
         displayName: "ChillHop Records", 
         bio: "Lo-fi beats and chill vibes. The perfect soundtrack for your study sessions.", 
         profileImageUrl: "https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
