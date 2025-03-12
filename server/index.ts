@@ -2,9 +2,33 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
-import { securityHeaders, rateLimiter } from "./middleware/security";
+import { securityHeaders, rateLimiter, corsHandler } from "./middleware/security";
+
+// Validate critical environment variables in production
+function validateEnvironment() {
+  if (process.env.NODE_ENV !== 'production') return;
+  
+  const requiredVars = [
+    'SESSION_SECRET'
+  ];
+  
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('CRITICAL ERROR: Missing required environment variables:');
+    missingVars.forEach(varName => console.error(`- ${varName}`));
+    console.error('Application may not function correctly without these variables.');
+  }
+}
+
+// Check environment variables
+validateEnvironment();
 
 const app = express();
+
+// CORS should be applied first
+app.use(corsHandler);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -13,6 +37,8 @@ if (process.env.NODE_ENV === 'production') {
   app.use(securityHeaders);
   app.use(rateLimiter);
   console.log('Production security middleware enabled');
+} else {
+  console.log('Running in development mode - full security middleware disabled');
 }
 
 // Serve uploaded files
