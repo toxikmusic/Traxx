@@ -44,6 +44,9 @@ export default function Sidebar() {
           <Link href="/streams" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Live Streams</span>
           </Link>
+          <Link href="/dashboard" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
+            <span className="text-sm font-medium">Creator Dashboard</span>
+          </Link>
           <Link href="/library" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Library</span>
           </Link>

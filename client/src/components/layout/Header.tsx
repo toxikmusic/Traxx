@@ -82,6 +82,9 @@ export default function Header() {
                   {user ? user.displayName : 'My Account'}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setLocation("/dashboard")}>
+                  Creator Dashboard
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setLocation(`/profile/${user?.username}`)}>
                   Profile
                 </DropdownMenuItem>
