@@ -75,8 +75,63 @@ function blockTestRoutesInProduction(req: Request, res: any, next: Function) {
   next();
 }
 
+/**
+ * Validates storage health by performing a basic operation
+ */
+async function checkStorageHealth(): Promise<{healthy: boolean, details?: string}> {
+  try {
+    // Attempt to get users as a basic check
+    await storage.getAllUsers();
+    return { healthy: true };
+  } catch (error) {
+    return { 
+      healthy: false, 
+      details: isProduction() ? "Storage service unavailable" : String(error)
+    };
+  }
+}
+
+/**
+ * Checks Cloudflare integration health if configured
+ */
+async function checkCloudflareHealth(): Promise<{healthy: boolean, details?: string, configured: boolean}> {
+  // Skip check if API key not configured
+  if (!process.env.CLOUDFLARE_API_KEY) {
+    return { healthy: false, configured: false };
+  }
+  
+  try {
+    // Basic check to verify API connectivity
+    const response = await axios({
+      method: 'GET',
+      url: 'https://api.cloudflare.com/client/v4/user/tokens/verify',
+      headers: {
+        'Authorization': `Bearer ${process.env.CLOUDFLARE_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 3000 // 3 second timeout
+    });
+    
+    if (response.data && response.data.success) {
+      return { healthy: true, configured: true };
+    } else {
+      return { 
+        healthy: false, 
+        configured: true,
+        details: isProduction() ? "Cloudflare API response invalid" : JSON.stringify(response.data)
+      };
+    }
+  } catch (error) {
+    return { 
+      healthy: false, 
+      configured: true,
+      details: isProduction() ? "Cloudflare API unavailable" : String(error)
+    };
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Add health check endpoint (useful for load balancers, monitoring tools)
+  // Basic health check endpoint (useful for load balancers, monitoring tools)
   app.get('/health', (req, res) => {
     const dbStatus = storage ? 'connected' : 'disconnected';
     
@@ -88,6 +143,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       version: process.env.npm_package_version || 'unknown',
       database: dbStatus
     });
+  });
+  
+  // Detailed health check endpoint for monitoring systems
+  app.get('/api/health/detailed', async (req, res) => {
+    try {
+      // Run storage health check
+      const storageHealth = await checkStorageHealth();
+      
+      // Run Cloudflare health check if available
+      const cloudflareHealth = await checkCloudflareHealth();
+      
+      // Memory usage information
+      const memoryUsage = process.memoryUsage();
+      
+      // Create response with detailed health information
+      const healthData = {
+        status: storageHealth.healthy ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        services: {
+          storage: {
+            status: storageHealth.healthy ? 'healthy' : 'failing',
+            details: storageHealth.details
+          },
+          cloudflare: {
+            status: cloudflareHealth.healthy ? 'healthy' : 'failing',
+            configured: cloudflareHealth.configured,
+            details: cloudflareHealth.details
+          }
+        },
+        system: {
+          memoryUsage: {
+            rss: Math.round(memoryUsage.rss / 1024 / 1024) + ' MB',
+            heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024) + ' MB',
+            heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + ' MB',
+            external: Math.round(memoryUsage.external / 1024 / 1024) + ' MB',
+          },
+          cpuUsage: process.cpuUsage()
+        }
+      };
+      
+      // Return appropriate status code based on health
+      const statusCode = storageHealth.healthy ? 200 : 503;
+      
+      res.status(statusCode).json(healthData);
+    } catch (error) {
+      console.error('Health check error:', error);
+      res.status(500).json({ 
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        message: 'Error performing health check',
+        details: isProduction() ? undefined : String(error)
+      });
+    }
   });
   
   // Add version endpoint for monitoring deploys
