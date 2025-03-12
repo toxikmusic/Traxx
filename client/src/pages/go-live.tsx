@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { createStream } from '@/lib/api';
 import { Stream } from '@shared/schema';
 import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
+import { cloudflareStreamingService, type CloudflareStreamStatus } from '@/lib/cloudflareStreaming';
 import { useLocation } from 'wouter';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -61,17 +62,18 @@ export default function GoLivePage() {
   // For demo, a fixed userId (in real app would come from auth)
   const userId = user?.id || 1;
   
-  // Initialize audio streaming when component mounts
+  // Initialize audio streaming and Cloudflare streaming service when component mounts
   useEffect(() => {
-    const initializeAudio = async () => {
+    const initialize = async () => {
       try {
-        const result = await audioStreamingService.initialize({
+        // Initialize audio streaming
+        const audioResult = await audioStreamingService.initialize({
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false
         });
         
-        if (result) {
+        if (audioResult) {
           setAudioInitialized(true);
           audioStreamingService.setVolume(volume);
           
@@ -89,6 +91,20 @@ export default function GoLivePage() {
             title: "Audio initialized",
             description: "Your microphone is ready for streaming.",
           });
+          
+          // Initialize Cloudflare streaming service
+          const cloudflareResult = await cloudflareStreamingService.initialize();
+          if (cloudflareResult) {
+            console.log("Cloudflare streaming service initialized");
+            // Update stream key display
+            const streamKey = cloudflareStreamingService.getRtmpsUrl();
+            if (streamKey) {
+              setStreamKey(streamKey);
+            }
+          } else {
+            console.error("Failed to initialize Cloudflare streaming service");
+          }
+          
         } else {
           toast({
             title: "Audio initialization failed",
@@ -106,7 +122,7 @@ export default function GoLivePage() {
       }
     };
 
-    initializeAudio();
+    initialize();
     
     // Clean up resources when component unmounts
     return () => {
@@ -114,6 +130,7 @@ export default function GoLivePage() {
         audioStreamingService.stopStreaming();
       }
       audioStreamingService.dispose();
+      cloudflareStreamingService.dispose();
     };
   }, [toast, volume]);
 
@@ -197,18 +214,32 @@ export default function GoLivePage() {
     }
     
     try {
-      // Generate a new stream key for demo
-      const newStreamKey = Math.random().toString(36).substring(2, 15);
-      setStreamKey(newStreamKey);
+      // First, ensure we have a Cloudflare stream key
+      const cloudflareResult = await cloudflareStreamingService.initialize();
+      if (!cloudflareResult) {
+        toast({
+          title: "Streaming setup failed",
+          description: "Could not initialize Cloudflare streaming. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
       
-      const result = await audioStreamingService.startStreaming(streamId, newStreamKey);
+      // Get the stream key from Cloudflare
+      const cloudflareStreamKey = cloudflareStreamingService.getRtmpsUrl();
+      if (cloudflareStreamKey) {
+        setStreamKey(cloudflareStreamKey);
+      }
+      
+      // Start local audio streaming
+      const result = await audioStreamingService.startStreaming(streamId, cloudflareStreamKey);
       
       if (result) {
         setIsStreaming(true);
         setActiveStreamId(streamId);
         toast({
           title: "Stream started",
-          description: "Your audio is now streaming live.",
+          description: "Your audio is now streaming live through Cloudflare.",
         });
       } else {
         toast({
@@ -229,9 +260,16 @@ export default function GoLivePage() {
   
   // Stop streaming function
   const stopStreaming = () => {
+    // Stop the local audio streaming
     audioStreamingService.stopStreaming();
+    
+    // Update UI states
     setIsStreaming(false);
     setActiveStreamId(null);
+    
+    // Reset stream key display for security
+    setStreamKey("••••••••••••••••");
+    
     toast({
       title: "Stream ended",
       description: "Your live stream has ended successfully.",

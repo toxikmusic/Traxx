@@ -2,9 +2,10 @@
  * Cloudflare Streaming Integration Service
  * Provides integration with Cloudflare Stream for live audio broadcasting
  */
+import axios from 'axios';
+import { apiRequest } from './queryClient';
 
 interface CloudflareStreamOptions {
-  accountId?: string;
   streamKey?: string;
   rtmpsUrl?: string;
   websocketUrl?: string;
@@ -19,55 +20,59 @@ export interface CloudflareStreamStatus {
   audioLevel?: number;
 }
 
+interface StreamKeyResponse {
+  streamKey: string;
+  rtmpsUrl: string;
+  playbackUrl: string;
+}
+
 class CloudflareStreamingService {
-  private apiKey: string = process.env.CLOUDFLARE_API_KEY || '';
-  private accountId: string = '';
   private streamKey: string = '';
   private rtmpsUrl: string = 'rtmps://live.cloudflare.com:443/live/';
   private websocketUrl: string = 'wss://live.cloudflare.com/webrtc/play/';
-  private playbackUrl: string = 'https://customer-streams.cloudflarestream.com/';
+  private playbackUrl: string = '';
   private streamStatus: CloudflareStreamStatus = {
     isLive: false,
     viewerCount: 0,
   };
   private onStatusChangeCallbacks: ((status: CloudflareStreamStatus) => void)[] = [];
+  private pollingInterval: ReturnType<typeof setInterval> | null = null;
   
   /**
-   * Initialize the Cloudflare streaming service with API key and options
+   * Initialize the Cloudflare streaming service with options
    */
   async initialize(options: CloudflareStreamOptions = {}): Promise<boolean> {
     try {
       // Set options if provided
-      if (options.accountId) this.accountId = options.accountId;
       if (options.streamKey) this.streamKey = options.streamKey;
       if (options.rtmpsUrl) this.rtmpsUrl = options.rtmpsUrl;
       if (options.websocketUrl) this.websocketUrl = options.websocketUrl;
       if (options.playbackUrl) this.playbackUrl = options.playbackUrl;
       
-      // Validate we have the necessary information
-      if (!this.apiKey) {
-        console.error('Cloudflare API key is not set');
-        return false;
-      }
-      
-      // If account ID is not provided, fetch it
-      if (!this.accountId) {
-        const accountInfo = await this.fetchAccountInfo();
-        if (accountInfo && accountInfo.id) {
-          this.accountId = accountInfo.id;
-        } else {
-          console.error('Failed to fetch Cloudflare account information');
-          return false;
-        }
-      }
-      
-      // If stream key is not provided, create or fetch a stream
+      // If stream key is not provided, fetch it from our API
       if (!this.streamKey) {
-        const streamInfo = await this.createOrGetStream();
-        if (streamInfo && streamInfo.uid) {
-          this.streamKey = streamInfo.uid;
-        } else {
-          console.error('Failed to create or get stream information');
+        try {
+          // Use axios directly to avoid type issues with the apiRequest function
+          const response = await axios.get('/api/cloudflare/stream-key', {
+            headers: {
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            },
+            withCredentials: true
+          });
+          
+          if (response && response.status === 200 && response.data) {
+            const data = response.data as StreamKeyResponse;
+            this.streamKey = data.streamKey;
+            this.rtmpsUrl = data.rtmpsUrl;
+            this.playbackUrl = data.playbackUrl;
+            console.log('Successfully fetched Cloudflare stream key');
+          } else {
+            console.error('Failed to fetch Cloudflare stream key');
+            return false;
+          }
+        } catch (error) {
+          console.error('Error fetching stream key:', error);
           return false;
         }
       }
@@ -100,7 +105,7 @@ class CloudflareStreamingService {
    * Get the HLS/DASH playback URL
    */
   getPlaybackUrl(): string {
-    return `${this.playbackUrl}${this.streamKey}/manifest/video.m3u8`;
+    return this.playbackUrl || `https://customer-streams.cloudflarestream.com/${this.streamKey}/manifest/video.m3u8`;
   }
   
   /**
@@ -118,30 +123,12 @@ class CloudflareStreamingService {
   }
   
   /**
-   * Fetch account information from Cloudflare
+   * Clean up resources when no longer needed
    */
-  private async fetchAccountInfo(): Promise<any> {
-    try {
-      // In a real implementation, this would make an API call to Cloudflare
-      // For now, return a stub since we're using the API key directly
-      return { id: 'default-account' };
-    } catch (error) {
-      console.error('Error fetching account info:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Create a new stream or get an existing one
-   */
-  private async createOrGetStream(): Promise<any> {
-    try {
-      // This would make an API call to Cloudflare to create or get a stream
-      // For now, use the API key itself as the stream ID (just for demonstration)
-      return { uid: this.apiKey.substring(0, 20) };
-    } catch (error) {
-      console.error('Error creating/getting stream:', error);
-      return null;
+  dispose(): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
     }
   }
   
@@ -149,7 +136,11 @@ class CloudflareStreamingService {
    * Poll for stream status
    */
   private startStatusPolling(): void {
-    setInterval(() => {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+    
+    this.pollingInterval = setInterval(() => {
       this.fetchStreamStatus().then(status => {
         if (status) {
           // Update stream status if changed
@@ -168,8 +159,8 @@ class CloudflareStreamingService {
    */
   private async fetchStreamStatus(): Promise<CloudflareStreamStatus | null> {
     try {
-      // This would make an API call to Cloudflare to get stream status
-      // For now, return a stub status
+      // In a real implementation, we would call our backend which would then communicate with Cloudflare
+      // For now, simulate a status
       return {
         isLive: true,
         streamId: this.streamKey,
