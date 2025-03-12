@@ -33,6 +33,7 @@ export default function StreamPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -48,95 +49,130 @@ export default function StreamPage() {
     peakViewerCount: 0 
   });
   const socketRef = useRef<WebSocket | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
   const { user } = useAuth();
-
-  // Fetch stream data
-  const { data: stream, isLoading: streamLoading } = useQuery<Stream>({
-    queryKey: [`/api/streams/${streamId}`],
-    enabled: !!streamId,
-  });
-
-  // Fetch streamer data
-  const { data: streamer, isLoading: streamerLoading } = useQuery<User>({
-    queryKey: [`/api/users/${stream?.userId}`],
-    enabled: !!stream,
-  });
-
-  // Mock stream data for initial render
+  
+  // Mock data for development until the real data is fetched
   const mockStream: Stream = {
     id: 1,
-    userId: 101,
-    title: "Deep House Vibes",
-    description: "Late night deep house session with all the good vibes. Join us for some relaxing beats and chat!",
-    thumbnailUrl: "https://images.unsplash.com/photo-1516873240891-4bf014598ab4?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
+    userId: 1,
+    title: "Late Night Beats",
+    description: "Chill vibes and smooth beats to relax to. Join the chat and let's vibe together!",
+    thumbnailUrl: "/uploads/images/stream-thumbnail-1.jpg",
     isLive: true,
-    viewerCount: 1256,
+    viewerCount: 245,
     startedAt: new Date(),
-    category: "House",
-    tags: ["House", "Electronic", "Deep House"]
+    category: "Music",
+    tags: ["Electronic", "Chill", "Lo-Fi"]
   };
-
-  // Mock streamer data for initial render
+  
   const mockStreamer: User = {
-    id: 101,
-    username: "djez",
+    id: 1,
+    username: "djshadow",
     password: "",
-    displayName: "DJ EZ",
-    bio: "House music producer and DJ based in London",
-    profileImageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?ixlib=rb-1.2.1&auto=format&fit=crop&w=40&h=40&q=80",
+    displayName: "DJ Shadow",
+    bio: "Music producer and DJ specializing in ambient electronic and lo-fi beats",
+    profileImageUrl: "/uploads/images/profile-dj-shadow.jpg",
     isStreaming: true,
-    followerCount: 45600,
-    createdAt: new Date()
+    followerCount: 5280,
+    createdAt: new Date(2023, 1, 15)
   };
-
-  // Mock chat messages
+  
   const mockChatMessages: ChatMessage[] = [
-    { id: 1, userId: 201, username: "musicLover42", message: "This beat is fire! 🔥", timestamp: new Date(Date.now() - 180000) },
-    { id: 2, userId: 202, username: "beatMaster", message: "What gear are you using?", timestamp: new Date(Date.now() - 150000) },
-    { id: 3, userId: 203, username: "nightOwl", message: "Perfect vibe for my late night coding session", timestamp: new Date(Date.now() - 120000) },
-    { id: 4, userId: 204, username: "deepHouseFan", message: "That transition was smooth!", timestamp: new Date(Date.now() - 90000) },
-    { id: 5, userId: 205, username: "synthWaver", message: "Can you play something with more bass?", timestamp: new Date(Date.now() - 60000) },
-    { id: 6, userId: 206, username: "clubKid99", message: "Greetings from Berlin! ❤️", timestamp: new Date(Date.now() - 30000) }
+    {
+      id: 1,
+      userId: 2,
+      username: "MusicLover42",
+      message: "This beat is fire! 🔥",
+      timestamp: new Date(Date.now() - 15 * 60000)
+    },
+    {
+      id: 2,
+      userId: 3,
+      username: "ChillVibesOnly",
+      message: "Perfect for late night coding sessions",
+      timestamp: new Date(Date.now() - 10 * 60000)
+    },
+    {
+      id: 3,
+      userId: 4,
+      username: "BassHead",
+      message: "That bassline tho!",
+      timestamp: new Date(Date.now() - 5 * 60000)
+    }
   ];
-
-  // Connect to WebSocket when stream and user info is available
+  
+  // Query for stream data
+  const { data: stream, isLoading: streamLoading } = useQuery<Stream>({
+    queryKey: ['/api/streams', streamId],
+    enabled: !!streamId
+  });
+  
+  // Query for streamer info
+  const { data: streamer, isLoading: streamerLoading } = useQuery<User>({
+    queryKey: ['/api/users', stream?.userId],
+    enabled: !!stream?.userId
+  });
+  
+  // Draw audio visualization using canvas
+  const drawVisualization = (data: Uint8Array) => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Set up visualization style
+    const barWidth = canvas.width / data.length * 2.5;
+    const barSpacing = 1;
+    const barHeightFactor = canvas.height / 255;
+    
+    // Draw frequency bars
+    ctx.fillStyle = 'rgba(138, 43, 226, 0.8)'; // Purple color matching theme
+    
+    for (let i = 0; i < data.length; i++) {
+      const barHeight = data[i] * barHeightFactor;
+      const x = i * (barWidth + barSpacing);
+      const y = canvas.height - barHeight;
+      
+      // Draw gradient bars
+      const gradient = ctx.createLinearGradient(x, y, x, canvas.height);
+      gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)');
+      gradient.addColorStop(1, 'rgba(185, 103, 255, 0.5)');
+      ctx.fillStyle = gradient;
+      
+      ctx.fillRect(x, y, barWidth, barHeight);
+    }
+  };
+  
+  // Connect to chat WebSocket
   useEffect(() => {
     if (!streamId) return;
     
-    // Close any existing connection
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-    
-    // Set up WebSocket connection
+    // Setup WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws?streamId=${streamId}&userId=${user?.id || 0}&username=${user?.displayName || 'Guest'}`;
-    
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
     
+    // Handle WebSocket events
     socket.onopen = () => {
       setIsConnected(true);
-      toast({
-        title: "Connected to stream",
-        description: "You've joined the live chat.",
-        variant: "default",
-      });
-    };
-    
-    socket.onclose = () => {
-      setIsConnected(false);
-    };
-    
-    socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      toast({
-        title: "Connection error",
-        description: "Failed to connect to chat. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Join the chat room for this stream
+      if (streamId) {
+        const joinMessage = {
+          type: 'join',
+          streamId: streamId,
+          userId: user?.id,
+          username: user?.displayName || 'Guest'
+        };
+        socket.send(JSON.stringify(joinMessage));
+      }
     };
     
     socket.onmessage = (event) => {
@@ -145,55 +181,76 @@ export default function StreamPage() {
         
         switch (data.type) {
           case 'chat_message':
-            // Add new chat message
-            if (data.message) {
-              setChatMessages(prev => [...prev, data.message]);
-            }
+            // Add new message to chat
+            setChatMessages(prev => [...prev, {
+              id: data.id || Date.now(),
+              userId: data.userId || 0,
+              username: data.username || 'Anonymous',
+              message: data.message || '',
+              timestamp: new Date(data.timestamp) || new Date()
+            }]);
             break;
             
           case 'chat_history':
-            // Replace chat messages with history
-            if (data.messages && Array.isArray(data.messages)) {
-              setChatMessages(data.messages);
+            // Replace chat with history
+            if (Array.isArray(data.messages)) {
+              setChatMessages(data.messages.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp)
+              })));
             }
             break;
             
           case 'viewer_count':
             // Update viewer count
-            if (typeof data.viewerCount === 'number') {
-              setViewerCount(data.viewerCount);
-            }
-            break;
-            
-          case 'user_joined':
-            // Optional: Show notification when user joins
-            toast({
-              title: "User joined",
-              description: `${data.username} joined the stream`,
-              variant: "default",
-            });
+            setViewerCount(data.viewerCount || 0);
             break;
             
           case 'stream_status':
-            // Handle stream status changes
-            if (data.isLive === false) {
-              toast({
-                title: "Stream ended",
-                description: "The stream has ended.",
-                variant: "default",
-              });
-            }
+            // Update stream status
+            setStreamStatus({
+              isLive: data.isLive || false,
+              viewerCount: data.viewerCount || 0,
+              peakViewerCount: data.peakViewerCount || 0,
+              streamId: data.streamId,
+              startTime: data.startTime ? new Date(data.startTime) : undefined
+            });
             break;
         }
       } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+        console.error('Error parsing WebSocket message:', error);
       }
     };
     
-    // Clean up on unmount
+    socket.onclose = () => {
+      setIsConnected(false);
+      // Try to reconnect after delay
+      setTimeout(() => {
+        if (socketRef.current?.readyState !== WebSocket.OPEN) {
+          // If still not connected, reconnect
+        }
+      }, 5000);
+    };
+    
+    socket.onerror = (error) => {
+      setIsConnected(false);
+      console.error('WebSocket error:', error);
+    };
+    
+    // Cleanup function
     return () => {
-      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-        socketRef.current.close();
+      if (socket.readyState === WebSocket.OPEN) {
+        // Send leave message before closing
+        if (streamId) {
+          const leaveMessage = {
+            type: 'leave',
+            streamId: streamId,
+            userId: user?.id,
+            username: user?.displayName || 'Guest'
+          };
+          socket.send(JSON.stringify(leaveMessage));
+        }
+        socket.close();
       }
     };
   }, [streamId, user, toast]);
@@ -327,39 +384,6 @@ export default function StreamPage() {
       }
     };
     
-    const drawVisualization = (data: Uint8Array) => {
-      if (!canvasRef.current) return;
-      
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Set up visualization style
-      const barWidth = canvas.width / data.length * 2.5;
-      const barSpacing = 1;
-      const barHeightFactor = canvas.height / 255;
-      
-      // Draw frequency bars
-      ctx.fillStyle = 'rgba(138, 43, 226, 0.8)'; // Purple color matching theme
-      
-      for (let i = 0; i < data.length; i++) {
-        const barHeight = data[i] * barHeightFactor;
-        const x = i * (barWidth + barSpacing);
-        const y = canvas.height - barHeight;
-        
-        // Draw gradient bars
-        const gradient = ctx.createLinearGradient(x, y, x, canvas.height);
-        gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)');
-        gradient.addColorStop(1, 'rgba(185, 103, 255, 0.5)');
-        ctx.fillStyle = gradient;
-        
-        ctx.fillRect(x, y, barWidth, barHeight);
-      }
-    };
-    
     setupAudioVisualizer();
     
     return () => {
@@ -471,7 +495,7 @@ export default function StreamPage() {
                       controls
                       autoPlay
                       playsInline
-                      poster={displayedStream.thumbnailUrl}
+                      poster={displayedStream.thumbnailUrl || undefined}
                     >
                       <source src="" type="video/mp4" />
                       Your browser does not support the video tag.
@@ -497,12 +521,12 @@ export default function StreamPage() {
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex items-start space-x-2">
                           <Avatar className="w-10 h-10">
-                            <AvatarImage src={displayedStreamer.profileImageUrl} />
+                            <AvatarImage src={displayedStreamer.profileImageUrl || undefined} />
                             <AvatarFallback>{displayedStreamer.displayName.charAt(0)}</AvatarFallback>
                           </Avatar>
                           <div>
                             <h2 className="font-medium">{displayedStreamer.displayName}</h2>
-                            <p className="text-sm text-gray-400">{displayedStreamer.followerCount.toLocaleString()} followers</p>
+                            <p className="text-sm text-gray-400">{displayedStreamer.followerCount ? displayedStreamer.followerCount.toLocaleString() : '0'} followers</p>
                           </div>
                         </div>
                         <Button 
