@@ -159,8 +159,9 @@ async function runProductionChecks() {
         console.log(chalk.red('❌ Cloudflare API key verification failed'));
         allChecksPassed = false;
       }
-    } catch (error) {
-      console.log(chalk.red(`❌ Cloudflare API connection failed: ${error.message}`));
+    } catch (error: any) { // Using any temporarily to resolve the type issue
+      const errorMessage = error?.message || String(error);
+      console.log(chalk.red(`❌ Cloudflare API connection failed: ${errorMessage}`));
       allChecksPassed = false;
     }
   } else {
