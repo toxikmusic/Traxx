@@ -56,6 +56,7 @@ export interface IStorage {
   getRecentTracks(): Promise<Track[]>;
   getTracksByUser(userId: number): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
+  incrementTrackPlayCount(trackId: number): Promise<void>;
   
   // Posts
   getPost(id: number): Promise<Post | undefined>;
@@ -70,6 +71,24 @@ export interface IStorage {
   // Follows
   createFollow(follow: InsertFollow): Promise<Follow>;
   removeFollow(followerId: number, followedId: number): Promise<void>;
+  isFollowing(followerId: number, followedId: number): Promise<boolean>;
+  getFollowers(userId: number): Promise<User[]>;
+  getFollowing(userId: number): Promise<User[]>;
+  
+  // Likes
+  createLike(like: InsertLike): Promise<Like>;
+  removeLike(userId: number, contentId: number, contentType: string): Promise<void>;
+  isLiked(userId: number, contentId: number, contentType: string): Promise<boolean>;
+  getLikeCount(contentId: number, contentType: string): Promise<number>;
+  getUserLikes(userId: number, contentType: string): Promise<number[]>; // Returns content IDs
+  
+  // Comments
+  getComment(id: number): Promise<Comment | undefined>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  updateComment(id: number, text: string): Promise<Comment | undefined>;
+  deleteComment(id: number): Promise<void>;
+  getCommentsByContent(contentId: number, contentType: string): Promise<Comment[]>;
+  getReplies(commentId: number): Promise<Comment[]>;
   
   // Creators
   getRecommendedCreators(): Promise<User[]>;
@@ -83,6 +102,8 @@ export class MemStorage implements IStorage {
   private posts: Map<number, Post>;
   private genres: Map<number, Genre>;
   private follows: Map<number, Follow>;
+  private likes: Map<number, Like>;
+  private comments: Map<number, Comment>;
   
   private userId: number;
   private userSettingsId: number;
@@ -91,6 +112,8 @@ export class MemStorage implements IStorage {
   private postId: number;
   private genreId: number;
   private followId: number;
+  private likeId: number;
+  private commentId: number;
   
   // Session store for authentication
   public sessionStore: session.Store;
@@ -103,6 +126,8 @@ export class MemStorage implements IStorage {
     this.posts = new Map();
     this.genres = new Map();
     this.follows = new Map();
+    this.likes = new Map();
+    this.comments = new Map();
     
     this.userId = 1;
     this.userSettingsId = 1;
@@ -111,6 +136,8 @@ export class MemStorage implements IStorage {
     this.postId = 1;
     this.genreId = 1;
     this.followId = 1;
+    this.likeId = 1;
+    this.commentId = 1;
     
     // Create memory session store
     this.sessionStore = new MemoryStore({

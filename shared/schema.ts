@@ -156,3 +156,45 @@ export type InsertGenre = z.infer<typeof insertGenreSchema>;
 
 export type Follow = typeof follows.$inferSelect;
 export type InsertFollow = z.infer<typeof insertFollowSchema>;
+
+// Likes model (for tracks and posts)
+export const likes = pgTable("likes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  contentId: integer("content_id").notNull(),
+  contentType: text("content_type").notNull(), // "track" or "post"
+  createdAt: timestamp("created_at").defaultNow()
+});
+
+export const insertLikeSchema = createInsertSchema(likes).pick({
+  userId: true,
+  contentId: true,
+  contentType: true
+});
+
+// Comments model (for tracks and posts)
+export const comments = pgTable("comments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  contentId: integer("content_id").notNull(), 
+  contentType: text("content_type").notNull(), // "track" or "post"
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  likeCount: integer("like_count").default(0),
+  parentId: integer("parent_id") // For nested comments/replies, null for top-level comments
+});
+
+export const insertCommentSchema = createInsertSchema(comments).pick({
+  userId: true,
+  contentId: true,
+  contentType: true,
+  text: true,
+  parentId: true
+});
+
+export type Like = typeof likes.$inferSelect;
+export type InsertLike = z.infer<typeof insertLikeSchema>;
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
