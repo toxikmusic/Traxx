@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
@@ -11,6 +11,47 @@ import {
   insertPostSchema 
 } from "@shared/schema";
 import { setupAuth } from "./auth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { log } from "./vite";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  fs.mkdirSync(path.join(uploadsDir, "audio"), { recursive: true });
+  fs.mkdirSync(path.join(uploadsDir, "images"), { recursive: true });
+}
+
+// Configure multer storage
+const storage_config = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const fileType = file.mimetype.startsWith('audio/') ? 'audio' : 'images';
+    cb(null, path.join(uploadsDir, fileType));
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+// Create multer upload middleware
+const upload = multer({ 
+  storage: storage_config,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max file size
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow audio and images
+    if (file.mimetype.startsWith('audio/') || file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes with Passport
@@ -140,6 +181,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(tracks);
   });
   
+  // Upload endpoints for files
+  app.post("/api/upload/audio", upload.single("audio"), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No audio file provided" });
+      }
+      
+      // Return the file path for client to use when creating tracks
+      const fileUrl = `/uploads/audio/${req.file.filename}`;
+      
+      // Get audio duration (in a real app, we would use a library to get this)
+      // For now we'll use a mock duration
+      const duration = 180; // 3 minutes in seconds
+      
+      res.status(201).json({ 
+        url: fileUrl, 
+        originalName: req.file.originalname,
+        size: req.file.size,
+        duration: duration
+      });
+    } catch (error) {
+      console.error("Audio upload error:", error);
+      res.status(500).json({ message: "Error uploading audio file" });
+    }
+  });
+  
+  app.post("/api/upload/image", upload.single("image"), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image file provided" });
+      }
+      
+      // Return the file path for client to use
+      const fileUrl = `/uploads/images/${req.file.filename}`;
+      
+      res.status(201).json({ 
+        url: fileUrl, 
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      console.error("Image upload error:", error);
+      res.status(500).json({ message: "Error uploading image file" });
+    }
+  });
+  
+  // Track creation endpoint
   app.post("/api/tracks", async (req, res) => {
     try {
       const trackData = insertTrackSchema.parse(req.body);
