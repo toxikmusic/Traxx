@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { Search } from 'lucide-react';
+import { Search, Headphones, Users, Radio } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileNavigation from '@/components/layout/MobileNavigation';
@@ -16,7 +17,7 @@ import StreamCard from '@/components/streams/StreamCard';
 import TrackCard from '@/components/tracks/TrackCard';
 import CreatorCard from '@/components/creators/CreatorCard';
 
-import { getFeaturedStreams, getRecentTracks } from '@/lib/api';
+import { getFeaturedStreams, getRecentTracks, getRecommendedCreators } from '@/lib/api';
 import { Stream, Track, User } from '@shared/schema';
 
 export default function DiscoverPage() {
@@ -32,43 +33,11 @@ export default function DiscoverPage() {
     queryKey: ['/api/tracks/recent'],
     queryFn: getRecentTracks
   });
-
-  // Mock data for creators until we have a real endpoint
-  const mockCreators: User[] = [
-    {
-      id: 1,
-      username: 'djshadow',
-      displayName: 'DJ Shadow',
-      password: '',
-      bio: 'Trip-hop and electronica pioneer',
-      profileImageUrl: 'https://source.unsplash.com/random/100x100?face=1',
-      isStreaming: true,
-      followerCount: 5120,
-      createdAt: new Date()
-    },
-    {
-      id: 2,
-      username: 'electronicamaster',
-      displayName: 'Electronica Master',
-      password: '',
-      bio: 'Creating electronic music since 1995',
-      profileImageUrl: 'https://source.unsplash.com/random/100x100?face=2',
-      isStreaming: false,
-      followerCount: 3450,
-      createdAt: new Date()
-    },
-    {
-      id: 3,
-      username: 'beatproducer',
-      displayName: 'Beat Producer',
-      password: '',
-      bio: 'Hip-hop and R&B beat maker',
-      profileImageUrl: 'https://source.unsplash.com/random/100x100?face=3',
-      isStreaming: false,
-      followerCount: 2180,
-      createdAt: new Date()
-    }
-  ];
+  
+  const { data: creators, isLoading: isLoadingCreators } = useQuery({
+    queryKey: ['/api/creators/recommended'],
+    queryFn: getRecommendedCreators
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -98,11 +67,23 @@ export default function DiscoverPage() {
                 </TabsList>
                 
                 <TabsContent value="creators" className="mt-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mockCreators.map((creator) => (
-                      <CreatorCard key={creator.id} creator={creator} />
-                    ))}
-                  </div>
+                  {isLoadingCreators ? (
+                    <div className="flex justify-center py-12">
+                      <Spinner size="lg" />
+                    </div>
+                  ) : creators && creators.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {creators.map((creator) => (
+                        <CreatorCard key={creator.id} creator={creator} />
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="py-10 text-center">
+                        <p className="text-muted-foreground">No creators found.</p>
+                      </CardContent>
+                    </Card>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="streams" className="mt-6">
@@ -158,16 +139,52 @@ export default function DiscoverPage() {
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {['Electronic', 'Hip-Hop', 'Rock', 'Jazz'].map((genre) => (
-                  <Card key={genre} className="overflow-hidden hover:shadow-md transition-shadow">
+                {[
+                  { name: 'Electronic', icon: <Radio className="h-5 w-5 mb-2" /> },
+                  { name: 'Hip-Hop', icon: <Headphones className="h-5 w-5 mb-2" /> },
+                  { name: 'Rock', icon: <Radio className="h-5 w-5 mb-2" /> },
+                  { name: 'Jazz', icon: <Headphones className="h-5 w-5 mb-2" /> }
+                ].map((genre) => (
+                  <Card key={genre.name} className="overflow-hidden hover:shadow-md transition-shadow border-primary/10">
                     <CardContent className="p-0">
-                      <Link href={`/genre/${genre.toLowerCase()}`} className="block p-6 text-center">
-                        <h3 className="font-medium text-lg">{genre}</h3>
+                      <Link href={`/genre/${genre.name.toLowerCase()}`} className="block p-6 text-center hover:bg-primary/5 transition-colors">
+                        <div className="flex flex-col items-center">
+                          {genre.icon}
+                          <h3 className="font-medium text-lg">{genre.name}</h3>
+                          <Badge variant="outline" className="mt-2">Trending</Badge>
+                        </div>
                       </Link>
                     </CardContent>
                   </Card>
                 ))}
               </div>
+            </section>
+            
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Weekly Top Picks</h2>
+                <Link href="/top-picks" className="text-primary hover:underline">
+                  See all
+                </Link>
+              </div>
+              
+              {isLoadingTracks ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : tracks && tracks.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {tracks.slice(0, 2).map((track) => (
+                    <TrackCard key={track.id} track={track} />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p className="text-muted-foreground">No top picks available.</p>
+                  </CardContent>
+                </Card>
+              )}
             </section>
           </div>
         </main>
