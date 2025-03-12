@@ -71,7 +71,7 @@ export default function Sidebar() {
             >
               <div className="relative">
                 <Avatar className="w-9 h-9">
-                  <AvatarImage src={channel.profileImageUrl} />
+                  <AvatarImage src={channel.profileImageUrl || undefined} />
                   <AvatarFallback>{channel.displayName.charAt(0)}</AvatarFallback>
                 </Avatar>
                 {channel.isStreaming && (
