@@ -1,6 +1,6 @@
 modules = ["nodejs-20", "bash", "web"]
-run = "npm run dev"
-hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+run = ["npm", "run", "dev"]
+hidden = [".config", "package-lock.json"]
 
 [nix]
 channel = "stable-24_05"
@@ -11,10 +11,6 @@ run = ["sh", "-c", "npm run dev"]
 
 [[ports]]
 localPort = 3000
-externalPort = 3000
-
-[[ports]]
-localPort = 5000
 externalPort = 80
 
 [workflows]
