@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 
 import Home from "@/pages/home";
 import Stream from "@/pages/stream";
+import Streams from "@/pages/streams";
 import Profile from "@/pages/profile";
 import Posts from "@/pages/posts";
 import Settings from "@/pages/settings";
@@ -23,6 +24,7 @@ function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={Home} />
+      <ProtectedRoute path="/streams" component={Streams} />
       <ProtectedRoute path="/stream/:id" component={Stream} />
       <ProtectedRoute path="/profile/:username" component={Profile} />
       <ProtectedRoute path="/posts" component={Posts} />
