@@ -13,7 +13,7 @@ type AuthContextType = {
   isLoading: boolean;
   error: Error | null;
   loginMutation: UseMutationResult<Omit<SelectUser, "password">, Error, LoginData>;
-  logoutMutation: UseMutationResult<void, Error, void>;
+  logoutMutation: UseMutationResult<unknown, Error, void>;
   registerMutation: UseMutationResult<Omit<SelectUser, "password">, Error, InsertUser>;
 };
 
@@ -34,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      return await apiRequest("/api/login", {
+      return await apiRequest<Omit<SelectUser, "password">>("/api/login", {
         method: "POST",
         body: JSON.stringify(credentials)
       });
@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      return await apiRequest("/api/register", {
+      return await apiRequest<Omit<SelectUser, "password">>("/api/register", {
         method: "POST",
         body: JSON.stringify(credentials)
       });
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/logout", {
+      await apiRequest<void>("/api/logout", {
         method: "POST"
       });
     },
