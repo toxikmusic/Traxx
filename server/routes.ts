@@ -775,7 +775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
   
   type ServerMessage = {
-    type: 'chat_message' | 'user_joined' | 'user_left' | 'stream_status' | 'viewer_count' | 'chat_history';
+    type: 'chat_message' | 'user_joined' | 'user_left' | 'stream_status' | 'viewer_count' | 'chat_history' | 'audio_level';
     streamId: number;
     userId?: number;
     username?: string;
@@ -784,6 +784,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     viewerCount?: number;
     timestamp?: Date;
     isLive?: boolean;
+    audioLevel?: number; // Audio level in dB
+    level?: number;      // For dedicated audio_level messages
   };
   
   // Keep track of active streams and their connections
@@ -1001,18 +1003,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         log(`Error updating stream status: ${err}`, 'websocket');
       });
       
-      // Handle broadcaster messages (audio data)
-      ws.on('message', (audioData) => {
-        // Broadcast audio data to all listeners
-        streamConnections.listeners.forEach(listener => {
-          if (listener.readyState === WebSocket.OPEN) {
-            try {
-              listener.send(audioData);
-            } catch (error) {
-              log(`Error sending audio data to listener: ${error}`, 'websocket');
+      // Handle broadcaster messages (audio data or control messages)
+      ws.on('message', (data) => {
+        // Check if this is a control message (string) or audio data (binary)
+        if (typeof data === 'string') {
+          try {
+            const controlMessage = JSON.parse(data.toString());
+            
+            // Handle audio level updates
+            if (controlMessage.type === 'audio_level' && typeof controlMessage.level === 'number') {
+              // Broadcast audio level to all listeners
+              streamConnections.listeners.forEach(listener => {
+                if (listener.readyState === WebSocket.OPEN) {
+                  try {
+                    listener.send(JSON.stringify({
+                      type: 'audio_level',
+                      streamId,
+                      level: controlMessage.level
+                    }));
+                  } catch (error) {
+                    log(`Error sending audio level to listener: ${error}`, 'websocket');
+                  }
+                }
+              });
+              
+              // Also broadcast to chat clients for display in UI
+              const chatConnections = streamConnections.get(streamId);
+              if (chatConnections) {
+                chatConnections.forEach(client => {
+                  if (client.readyState === WebSocket.OPEN) {
+                    try {
+                      client.send(JSON.stringify({
+                        type: 'stream_status',
+                        streamId,
+                        isLive: true,
+                        audioLevel: controlMessage.level,
+                        timestamp: new Date()
+                      }));
+                    } catch (error) {
+                      log(`Error sending audio level to chat client: ${error}`, 'websocket');
+                    }
+                  }
+                });
+              }
             }
+          } catch (error) {
+            log(`Error processing control message: ${error}`, 'websocket');
           }
-        });
+        } else {
+          // This is binary audio data
+          // Broadcast audio data to all listeners
+          streamConnections.listeners.forEach(listener => {
+            if (listener.readyState === WebSocket.OPEN) {
+              try {
+                listener.send(data);
+              } catch (error) {
+                log(`Error sending audio data to listener: ${error}`, 'websocket');
+              }
+            }
+          });
+        }
       });
       
       // Handle broadcaster disconnection
