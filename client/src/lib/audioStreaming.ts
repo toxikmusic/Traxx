@@ -3,8 +3,6 @@
  * Handles audio capture, processing, and streaming for the BeatStream platform
  */
 
-import { log } from "../../server/vite";
-
 export interface AudioStreamSettings {
   sampleRate?: number;
   echoCancellation?: boolean;

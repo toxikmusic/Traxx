@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +6,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { createStream } from '@/lib/api';
 import { Stream } from '@shared/schema';
+import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
+import { useLocation } from 'wouter';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,12 +16,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertCircle, Camera, Radio, Mic } from 'lucide-react';
+import { AlertCircle, Camera, Radio, Mic, Volume2, VolumeX, BarChart3 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileNavigation from '@/components/layout/MobileNavigation';
 import AudioPlayer from '@/components/layout/AudioPlayer';
+import { useAuth } from '@/hooks/use-auth';
 
 // Form schema
 const streamFormSchema = z.object({
@@ -35,12 +40,82 @@ type StreamFormValues = z.infer<typeof streamFormSchema>;
 
 export default function GoLivePage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [streamKey, setStreamKey] = useState("••••••••••••••••");
   const [showStreamKey, setShowStreamKey] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [volume, setVolume] = useState(0.8);
+  const [isMuted, setIsMuted] = useState(false);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>({ 
+    isLive: false, 
+    viewerCount: 0, 
+    peakViewerCount: 0 
+  });
+  const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [activeStreamId, setActiveStreamId] = useState<number | null>(null);
   
   // For demo, a fixed userId (in real app would come from auth)
-  const userId = 1;
+  const userId = user?.id || 1;
+  
+  // Initialize audio streaming when component mounts
+  useEffect(() => {
+    const initializeAudio = async () => {
+      try {
+        const result = await audioStreamingService.initialize({
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        });
+        
+        if (result) {
+          setAudioInitialized(true);
+          audioStreamingService.setVolume(volume);
+          
+          // Register status change listener
+          audioStreamingService.onStatusChange((status) => {
+            setStreamStatus(status);
+          });
+          
+          // Register visualization data listener
+          audioStreamingService.onVisualize((data) => {
+            setFrequencyData(data);
+          });
+          
+          toast({
+            title: "Audio initialized",
+            description: "Your microphone is ready for streaming.",
+          });
+        } else {
+          toast({
+            title: "Audio initialization failed",
+            description: "Could not access your microphone. Please check permissions.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+        toast({
+          title: "Audio error",
+          description: "Failed to initialize audio streaming. Please check your microphone settings.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    initializeAudio();
+    
+    // Clean up resources when component unmounts
+    return () => {
+      if (isStreaming) {
+        audioStreamingService.stopStreaming();
+      }
+      audioStreamingService.dispose();
+    };
+  }, [toast, volume]);
 
   // Set up form with validation
   const form = useForm<StreamFormValues>({
