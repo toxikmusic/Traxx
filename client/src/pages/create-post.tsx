@@ -7,7 +7,7 @@ import {
   FormLabel, 
   FormMessage 
 } from "@/components/ui/form";
-import { PostType } from "@shared/schema";
+import { PostType, PostTypeValues } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ const postFormSchema = z.object({
   content: z.string().min(1, "Content is required"),
   imageFile: z.instanceof(File).optional(),
   tags: z.string().optional(),
-  postType: z.string().default(PostType.TEXT),
+  postType: z.enum([PostType.TEXT, PostType.IMAGE]).default(PostType.TEXT),
 });
 
 type FormValues = z.infer<typeof postFormSchema>;
@@ -46,7 +46,7 @@ export default function CreatePostPage() {
       title: "",
       content: "",
       tags: "",
-      postType: "text",
+      postType: PostType.TEXT,
     },
   });
 
@@ -117,7 +117,7 @@ export default function CreatePostPage() {
         : [];
       
       // Determine post type based on image presence
-      const postType = imageUrl ? "image" : "text";
+      const postType = imageUrl ? PostType.IMAGE : PostType.TEXT;
       
       // Create the post with the image URL if available
       await createPostMutation.mutateAsync({
@@ -145,6 +145,9 @@ export default function CreatePostPage() {
     const file = e.target.files?.[0];
     if (file) {
       form.setValue("imageFile", file);
+      
+      // When an image is uploaded, also update the post type to IMAGE
+      form.setValue("postType", PostType.IMAGE);
       
       // Create preview URL
       const url = URL.createObjectURL(file);
