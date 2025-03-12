@@ -15,6 +15,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { log } from "./vite";
+import WebSocket, { WebSocketServer } from "ws";
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -393,6 +394,244 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Types for WebSocket messages
+  type ChatMessage = {
+    id: number;
+    userId: number;
+    username: string;
+    message: string;
+    timestamp: Date;
+  };
+  
+  type ClientMessage = {
+    type: 'chat' | 'join' | 'leave';
+    streamId: number;
+    userId?: number;
+    username?: string;
+    message?: string;
+  };
+  
+  type ServerMessage = {
+    type: 'chat_message' | 'user_joined' | 'user_left' | 'stream_status' | 'viewer_count' | 'chat_history';
+    streamId: number;
+    userId?: number;
+    username?: string;
+    message?: string;
+    messages?: ChatMessage[];
+    viewerCount?: number;
+    timestamp?: Date;
+    isLive?: boolean;
+  };
+  
+  // Keep track of active streams and their connections
+  const streamConnections = new Map<number, Set<WebSocket>>();
+  const streamMessages = new Map<number, ChatMessage[]>();
+  
+  wss.on('connection', (ws, req) => {
+    log('New WebSocket connection established', 'websocket');
+    
+    // Parse URL to get parameters
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const streamId = parseInt(url.searchParams.get('streamId') || '0');
+    const userId = parseInt(url.searchParams.get('userId') || '0');
+    const username = url.searchParams.get('username') || 'Anonymous';
+    
+    if (streamId <= 0) {
+      ws.close(1008, 'Invalid stream ID');
+      return;
+    }
+    
+    // Add this client to the stream's connections
+    if (!streamConnections.has(streamId)) {
+      streamConnections.set(streamId, new Set());
+      streamMessages.set(streamId, []);
+    }
+    
+    const connections = streamConnections.get(streamId);
+    if (connections) {
+      connections.add(ws);
+      
+      // Update viewer count
+      const viewerCount = connections.size;
+      storage.updateStreamViewerCount(streamId, viewerCount);
+      
+      // Send existing chat history
+      const messages = streamMessages.get(streamId) || [];
+      ws.send(JSON.stringify({
+        type: 'chat_history',
+        streamId,
+        messages
+      }));
+      
+      // Send current viewer count to all clients
+      connections.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'viewer_count',
+            streamId,
+            viewerCount,
+            timestamp: new Date()
+          }));
+        }
+      });
+      
+      // Broadcast user joined message
+      if (userId > 0) {
+        const joinMessage: ChatMessage = {
+          id: Date.now(),
+          userId,
+          username,
+          message: `${username} joined the stream`,
+          timestamp: new Date()
+        };
+        
+        messages.push(joinMessage);
+        
+        connections.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'user_joined',
+              streamId,
+              userId,
+              username,
+              timestamp: new Date()
+            }));
+          }
+        });
+      }
+    }
+    
+    // Handle incoming messages
+    ws.on('message', (message) => {
+      try {
+        const data: ClientMessage = JSON.parse(message.toString());
+        const connections = streamConnections.get(data.streamId);
+        const messages = streamMessages.get(data.streamId) || [];
+        
+        if (!connections) return;
+        
+        if (data.type === 'chat' && data.message) {
+          // Create chat message
+          const chatMessage: ChatMessage = {
+            id: Date.now(),
+            userId: data.userId || 0,
+            username: data.username || 'Anonymous',
+            message: data.message,
+            timestamp: new Date()
+          };
+          
+          // Add to message history
+          messages.push(chatMessage);
+          
+          // Limit history to prevent memory issues
+          if (messages.length > 100) {
+            messages.splice(0, messages.length - 100);
+          }
+          
+          // Broadcast to all clients
+          connections.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'chat_message',
+                streamId: data.streamId,
+                message: chatMessage
+              }));
+            }
+          });
+        }
+      } catch (error) {
+        log(`Error processing WebSocket message: ${error}`, 'websocket');
+      }
+    });
+    
+    // Handle disconnection
+    ws.on('close', () => {
+      const connections = streamConnections.get(streamId);
+      
+      if (connections) {
+        // Remove this client
+        connections.delete(ws);
+        
+        // Update viewer count
+        const viewerCount = connections.size;
+        storage.updateStreamViewerCount(streamId, viewerCount);
+        
+        // Broadcast updated viewer count
+        connections.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+              type: 'viewer_count',
+              streamId,
+              viewerCount,
+              timestamp: new Date()
+            }));
+          }
+        });
+        
+        // Broadcast user left message
+        if (userId > 0) {
+          connections.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'user_left',
+                streamId,
+                userId,
+                username,
+                timestamp: new Date()
+              }));
+            }
+          });
+        }
+        
+        // Clean up empty stream connections
+        if (connections.size === 0) {
+          streamConnections.delete(streamId);
+          streamMessages.delete(streamId);
+        }
+      }
+    });
+  });
+  
+  // Add endpoint to end a stream
+  app.post("/api/streams/:id/end", async (req, res) => {
+    const streamId = parseInt(req.params.id);
+    if (isNaN(streamId)) {
+      return res.status(400).json({ message: "Invalid stream ID" });
+    }
+    
+    const stream = await storage.getStream(streamId);
+    if (!stream) {
+      return res.status(404).json({ message: "Stream not found" });
+    }
+    
+    // Update stream state to not live
+    await storage.updateStream(streamId, { isLive: false });
+    
+    // Notify all connected clients
+    const connections = streamConnections.get(streamId);
+    if (connections) {
+      connections.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'stream_status',
+            streamId,
+            isLive: false,
+            timestamp: new Date()
+          }));
+        }
+      });
+    }
+    
+    // Clean up resources
+    streamConnections.delete(streamId);
+    streamMessages.delete(streamId);
+    
+    res.json({ success: true });
+  });
 
   return httpServer;
 }
