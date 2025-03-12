@@ -56,7 +56,8 @@ export default function LikeButton({
       
       const res = await apiRequest(
         'GET', 
-        `/api/likes/check?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`
+        `/api/likes/check?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`,
+        null
       );
       return res.json();
     },
@@ -67,7 +68,7 @@ export default function LikeButton({
   const { data: likeCountData } = useQuery({
     queryKey: [`/api/likes/count`, contentType, contentId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/likes/count/${contentType}/${contentId}`);
+      const res = await apiRequest('GET', `/api/likes/count/${contentType}/${contentId}`, null);
       return res.json();
     }
   });

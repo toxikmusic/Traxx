@@ -39,10 +39,28 @@ interface CommentItemProps {
   username?: string; // Add username separately
 }
 
-function CommentItem({ comment, currentUserId, onReply, onDelete, onEdit }: CommentItemProps) {
+function CommentItem({ comment, currentUserId, onReply, onDelete, onEdit, username }: CommentItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(comment.text);
   const isOwnComment = currentUserId === comment.userId;
+  const [displayName, setDisplayName] = useState<string>("User");
+  
+  // Fetch user info for the comment
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(`/api/users/${comment.userId}`);
+        if (response.ok) {
+          const userData = await response.json();
+          setDisplayName(userData.displayName || userData.username);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+    
+    fetchUser();
+  }, [comment.userId]);
   
   const handleSaveEdit = () => {
     if (editText.trim() !== comment.text) {
@@ -56,14 +74,14 @@ function CommentItem({ comment, currentUserId, onReply, onDelete, onEdit }: Comm
       <CardContent className="pt-4">
         <div className="flex items-start gap-3">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.username}`} />
-            <AvatarFallback>{comment.username?.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${displayName}`} />
+            <AvatarFallback>{displayName.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold text-sm">{comment.username}</p>
+                <p className="font-semibold text-sm">{displayName}</p>
                 <p className="text-xs text-gray-500">
                   {comment.createdAt && format(new Date(comment.createdAt), 'MMM d, yyyy • h:mm a')}
                   {comment.updatedAt !== comment.createdAt && ' (edited)'}
@@ -150,10 +168,10 @@ export default function CommentSection({ contentId, contentType }: CommentSectio
   });
 
   // Query to get comments for this content
-  const { data: comments = [], isLoading } = useQuery({
+  const { data: comments = [], isLoading } = useQuery<Comment[]>({
     queryKey: [`/api/comments`, contentType, contentId],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/comments/${contentType}/${contentId}`);
+      const res = await apiRequest('GET', `/api/comments/${contentType}/${contentId}`, null);
       return res.json();
     }
   });
@@ -171,7 +189,7 @@ export default function CommentSection({ contentId, contentType }: CommentSectio
         parentId: replyingTo
       };
       
-      const res = await apiRequest('POST', '/api/comments', commentData);
+      const res = await apiRequest('POST', '/api/comments', null, commentData);
       return res.json();
     },
     onSuccess: () => {
@@ -195,7 +213,7 @@ export default function CommentSection({ contentId, contentType }: CommentSectio
   // Mutation to edit a comment
   const editCommentMutation = useMutation({
     mutationFn: async ({ commentId, text }: { commentId: number, text: string }) => {
-      const res = await apiRequest('PUT', `/api/comments/${commentId}`, { text });
+      const res = await apiRequest('PUT', `/api/comments/${commentId}`, null, { text });
       return res.json();
     },
     onSuccess: () => {
@@ -217,8 +235,7 @@ export default function CommentSection({ contentId, contentType }: CommentSectio
   // Mutation to delete a comment
   const deleteCommentMutation = useMutation({
     mutationFn: async (commentId: number) => {
-      const res = await apiRequest('DELETE', `/api/comments/${commentId}`);
-      return res;
+      return await apiRequest('DELETE', `/api/comments/${commentId}`, null);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/comments`] });
@@ -317,7 +334,7 @@ export default function CommentSection({ contentId, contentType }: CommentSectio
         <div className="text-center p-4">Loading comments...</div>
       ) : comments.length > 0 ? (
         <div>
-          {comments.map((comment) => (
+          {comments.map((comment: Comment) => (
             <CommentItem 
               key={comment.id} 
               comment={comment}
