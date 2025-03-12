@@ -32,7 +32,12 @@ export default function StreamPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [viewerCount, setViewerCount] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef<WebSocket | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
   // Fetch stream data
   const { data: stream, isLoading: streamLoading } = useQuery<Stream>({
@@ -83,16 +88,116 @@ export default function StreamPage() {
     { id: 6, userId: 206, username: "clubKid99", message: "Greetings from Berlin! ❤️", timestamp: new Date(Date.now() - 30000) }
   ];
 
+  // Connect to WebSocket when stream and user info is available
   useEffect(() => {
-    // Initialize with mock chat messages
-    setChatMessages(mockChatMessages);
+    if (!streamId) return;
     
-    // Simulate video playback with poster image for mock purposes
-    if (videoRef.current) {
-      videoRef.current.poster = mockStream.thumbnailUrl;
+    // Close any existing connection
+    if (socketRef.current) {
+      socketRef.current.close();
     }
     
-    // Scroll chat to bottom on load
+    // Set up WebSocket connection
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws?streamId=${streamId}&userId=${user?.id || 0}&username=${user?.displayName || 'Guest'}`;
+    
+    const socket = new WebSocket(wsUrl);
+    socketRef.current = socket;
+    
+    socket.onopen = () => {
+      setIsConnected(true);
+      toast({
+        title: "Connected to stream",
+        description: "You've joined the live chat.",
+        variant: "default",
+      });
+    };
+    
+    socket.onclose = () => {
+      setIsConnected(false);
+    };
+    
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      toast({
+        title: "Connection error",
+        description: "Failed to connect to chat. Please try again.",
+        variant: "destructive",
+      });
+    };
+    
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        switch (data.type) {
+          case 'chat_message':
+            // Add new chat message
+            if (data.message) {
+              setChatMessages(prev => [...prev, data.message]);
+            }
+            break;
+            
+          case 'chat_history':
+            // Replace chat messages with history
+            if (data.messages && Array.isArray(data.messages)) {
+              setChatMessages(data.messages);
+            }
+            break;
+            
+          case 'viewer_count':
+            // Update viewer count
+            if (typeof data.viewerCount === 'number') {
+              setViewerCount(data.viewerCount);
+            }
+            break;
+            
+          case 'user_joined':
+            // Optional: Show notification when user joins
+            toast({
+              title: "User joined",
+              description: `${data.username} joined the stream`,
+              variant: "default",
+            });
+            break;
+            
+          case 'stream_status':
+            // Handle stream status changes
+            if (data.isLive === false) {
+              toast({
+                title: "Stream ended",
+                description: "The stream has ended.",
+                variant: "default",
+              });
+            }
+            break;
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+      }
+    };
+    
+    // Clean up on unmount
+    return () => {
+      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+        socketRef.current.close();
+      }
+    };
+  }, [streamId, user, toast]);
+  
+  // Initialize UI and scroll chat to bottom on load
+  useEffect(() => {
+    // For initial load, use mock data if no real data yet
+    if (!chatMessages.length) {
+      setChatMessages(mockChatMessages);
+    }
+    
+    // Simulate video playback with poster image
+    if (videoRef.current && displayedStream.thumbnailUrl) {
+      videoRef.current.poster = displayedStream.thumbnailUrl;
+    }
+    
+    // Scroll chat to bottom
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
@@ -107,14 +212,41 @@ export default function StreamPage() {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (chatMessage.trim()) {
+    
+    if (!chatMessage.trim()) return;
+    
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN && streamId) {
+      // Send message through WebSocket
+      const messageData = {
+        type: 'chat',
+        streamId: streamId,
+        userId: user?.id,
+        username: user?.displayName || 'Guest',
+        message: chatMessage
+      };
+      
+      socketRef.current.send(JSON.stringify(messageData));
+      setChatMessage("");
+      
+      // We don't need to add the message to the chat manually
+      // The server will broadcast it and we'll receive it back
+    } else {
+      // Fallback for when socket is not connected
+      toast({
+        title: "Connection issue",
+        description: "Cannot send message, trying to reconnect...",
+        variant: "destructive",
+      });
+      
+      // Add message locally if not connected
       const newMessage: ChatMessage = {
-        id: chatMessages.length + 1,
-        userId: 999, // Current user
-        username: "You",
+        id: Date.now(),
+        userId: user?.id || 0,
+        username: user?.displayName || 'Guest',
         message: chatMessage,
         timestamp: new Date()
       };
+      
       setChatMessages([...chatMessages, newMessage]);
       setChatMessage("");
     }
@@ -205,7 +337,8 @@ export default function StreamPage() {
                             LIVE
                           </Badge>
                           <Badge variant="outline" className="bg-dark-100 hover:bg-dark-100">
-                            {displayedStream.viewerCount.toLocaleString()} viewers
+                            <Users size={14} className="mr-1" />
+                            {(viewerCount || displayedStream.viewerCount || 0).toLocaleString()} viewers
                           </Badge>
                           {displayedStream.tags?.map((tag, idx) => (
                             <Badge key={idx} variant="outline" className="bg-dark-100 hover:bg-dark-100">
@@ -222,34 +355,54 @@ export default function StreamPage() {
               
               {/* Chat area */}
               <div className="bg-dark-200 rounded-lg overflow-hidden flex flex-col h-[600px]">
-                <div className="p-3 border-b border-dark-100">
+                <div className="p-3 border-b border-dark-100 flex justify-between items-center">
                   <h3 className="font-medium">Live Chat</h3>
+                  <div className="flex items-center text-xs">
+                    {isConnected ? (
+                      <span className="flex items-center text-green-500">
+                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1.5"></span>
+                        Connected
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-red-500">
+                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1.5"></span>
+                        Disconnected
+                      </span>
+                    )}
+                  </div>
                 </div>
                 
                 <div 
                   ref={chatContainerRef}
                   className="flex-1 overflow-y-auto p-3 space-y-3"
                 >
-                  {chatMessages.map((msg) => (
-                    <div key={msg.id} className="flex space-x-2">
-                      <div className="shrink-0">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className="text-xs">{msg.username[0]}</AvatarFallback>
-                        </Avatar>
-                      </div>
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-sm font-medium ${msg.username === 'You' ? 'text-primary' : 'text-gray-300'}`}>
-                            {msg.username}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatTimestamp(msg.timestamp)}
-                          </span>
+                  {chatMessages.length > 0 ? (
+                    chatMessages.map((msg) => (
+                      <div key={msg.id} className="flex space-x-2">
+                        <div className="shrink-0">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-xs">{msg.username[0]}</AvatarFallback>
+                          </Avatar>
                         </div>
-                        <p className="text-sm text-gray-200 break-words">{msg.message}</p>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`text-sm font-medium ${msg.username === user?.displayName ? 'text-primary' : 'text-gray-300'}`}>
+                              {msg.username}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {formatTimestamp(msg.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-200 break-words">{msg.message}</p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 text-sm">
+                      <p>No messages yet</p>
+                      <p className="mt-2">Be the first to chat!</p>
                     </div>
-                  ))}
+                  )}
                 </div>
                 
                 <form onSubmit={handleSendMessage} className="p-3 border-t border-dark-100 flex">
