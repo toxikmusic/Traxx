@@ -262,14 +262,29 @@ export class MemStorage implements IStorage {
   
   async createPost(insertPost: InsertPost): Promise<Post> {
     const id = this.postId++;
+    
+    // Ensure we have the correct post type from enum
+    const postType = insertPost.postType === PostType.IMAGE ? 
+      PostType.IMAGE : PostType.TEXT;
+    
+    // Ensure tags is an array
+    const tags = Array.isArray(insertPost.tags) ? 
+      insertPost.tags : 
+      (insertPost.tags ? [insertPost.tags] : []);
+    
+    // Create post with properly validated fields
     const post: Post = {
       ...insertPost,
       id,
       likeCount: 0,
       commentCount: 0,
+      tags: tags,
+      postType: postType,
+      imageUrl: insertPost.imageUrl || null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    
     this.posts.set(id, post);
     return post;
   }
