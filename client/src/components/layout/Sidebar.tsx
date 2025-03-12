@@ -41,8 +41,17 @@ export default function Sidebar() {
           <Link href="/" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Home</span>
           </Link>
+          <Link href="/library" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
+            <span className="text-sm font-medium">Library</span>
+          </Link>
           <Link href="/posts" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Posts</span>
+          </Link>
+          <Link href="/upload-track" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
+            <span className="text-sm font-medium">Upload Track</span>
+          </Link>
+          <Link href="/go-live" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
+            <span className="text-sm font-medium">Go Live</span>
           </Link>
           <Link href="/settings" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Settings</span>
