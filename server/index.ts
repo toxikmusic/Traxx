@@ -8,6 +8,13 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Apply security middleware in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(securityHeaders);
+  app.use(rateLimiter);
+  console.log('Production security middleware enabled');
+}
+
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
