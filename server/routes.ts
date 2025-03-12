@@ -694,6 +694,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       };
       
+      // Ensure postType is either "text" or "image"
+      if (postData.postType !== 'text' && postData.postType !== 'image') {
+        return res.status(400).json({ message: "Invalid post type. Must be 'text' or 'image'" });
+      }
+      
       const validatedData = insertPostSchema.parse(postData);
       const post = await storage.createPost(validatedData);
       res.status(201).json(post);

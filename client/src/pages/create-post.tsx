@@ -27,7 +27,7 @@ const postFormSchema = z.object({
   content: z.string().min(1, "Content is required"),
   imageFile: z.instanceof(File).optional(),
   tags: z.string().optional(),
-  postType: z.string().default("general"),
+  postType: z.string().default("text"),
 });
 
 type FormValues = z.infer<typeof postFormSchema>;
@@ -45,7 +45,7 @@ export default function CreatePostPage() {
       title: "",
       content: "",
       tags: "",
-      postType: "general",
+      postType: "text",
     },
   });
 
@@ -115,6 +115,9 @@ export default function CreatePostPage() {
         ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) 
         : [];
       
+      // Determine post type based on image presence
+      const postType = imageUrl ? "image" : "text";
+      
       // Create the post with the image URL if available
       await createPostMutation.mutateAsync({
         userId: user.id,
@@ -122,7 +125,7 @@ export default function CreatePostPage() {
         content: values.content,
         imageUrl: imageUrl,
         tags: tagsArray,
-        postType: values.postType,
+        postType: postType,
       });
       
     } catch (error) {
