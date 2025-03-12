@@ -400,6 +400,196 @@ export class MemStorage implements IStorage {
     }
   }
   
+  async isFollowing(followerId: number, followedId: number): Promise<boolean> {
+    return Array.from(this.follows.values()).some(
+      f => f.followerId === followerId && f.followedId === followedId
+    );
+  }
+  
+  async getFollowers(userId: number): Promise<User[]> {
+    const followerIds = Array.from(this.follows.values())
+      .filter(f => f.followedId === userId)
+      .map(f => f.followerId);
+    
+    return Promise.all(followerIds.map(id => this.getUser(id)))
+      .then(users => users.filter(Boolean) as User[]);
+  }
+  
+  async getFollowing(userId: number): Promise<User[]> {
+    const followingIds = Array.from(this.follows.values())
+      .filter(f => f.followerId === userId)
+      .map(f => f.followedId);
+    
+    return Promise.all(followingIds.map(id => this.getUser(id)))
+      .then(users => users.filter(Boolean) as User[]);
+  }
+  
+  // Likes
+  async createLike(insertLike: InsertLike): Promise<Like> {
+    const id = this.likeId++;
+    const like: Like = { ...insertLike, id, createdAt: new Date() };
+    this.likes.set(id, like);
+    
+    // Update like count on the content
+    if (insertLike.contentType === 'track') {
+      const track = this.tracks.get(insertLike.contentId);
+      if (track) {
+        track.likeCount += 1;
+        this.tracks.set(track.id, track);
+      }
+    } else if (insertLike.contentType === 'post') {
+      const post = this.posts.get(insertLike.contentId);
+      if (post) {
+        post.likeCount += 1;
+        this.posts.set(post.id, post);
+      }
+    }
+    
+    return like;
+  }
+  
+  async removeLike(userId: number, contentId: number, contentType: string): Promise<void> {
+    const likeToRemove = Array.from(this.likes.values()).find(
+      l => l.userId === userId && l.contentId === contentId && l.contentType === contentType
+    );
+    
+    if (likeToRemove) {
+      this.likes.delete(likeToRemove.id);
+      
+      // Update like count on the content
+      if (contentType === 'track') {
+        const track = this.tracks.get(contentId);
+        if (track && track.likeCount > 0) {
+          track.likeCount -= 1;
+          this.tracks.set(track.id, track);
+        }
+      } else if (contentType === 'post') {
+        const post = this.posts.get(contentId);
+        if (post && post.likeCount > 0) {
+          post.likeCount -= 1;
+          this.posts.set(post.id, post);
+        }
+      }
+    }
+  }
+  
+  async isLiked(userId: number, contentId: number, contentType: string): Promise<boolean> {
+    return Array.from(this.likes.values()).some(
+      l => l.userId === userId && l.contentId === contentId && l.contentType === contentType
+    );
+  }
+  
+  async getLikeCount(contentId: number, contentType: string): Promise<number> {
+    return Array.from(this.likes.values()).filter(
+      l => l.contentId === contentId && l.contentType === contentType
+    ).length;
+  }
+  
+  async getUserLikes(userId: number, contentType: string): Promise<number[]> {
+    return Array.from(this.likes.values())
+      .filter(l => l.userId === userId && l.contentType === contentType)
+      .map(l => l.contentId);
+  }
+  
+  // Comments
+  async getComment(id: number): Promise<Comment | undefined> {
+    return this.comments.get(id);
+  }
+  
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const id = this.commentId++;
+    const comment: Comment = {
+      ...insertComment,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      likeCount: 0
+    };
+    this.comments.set(id, comment);
+    
+    // Update comment count on the content
+    if (insertComment.contentType === 'track') {
+      const track = this.tracks.get(insertComment.contentId);
+      if (track) {
+        // Ensure track has commentCount property or add it
+        if (!('commentCount' in track)) {
+          (track as any).commentCount = 0;
+        }
+        (track as any).commentCount += 1;
+        this.tracks.set(track.id, track);
+      }
+    } else if (insertComment.contentType === 'post') {
+      const post = this.posts.get(insertComment.contentId);
+      if (post) {
+        post.commentCount += 1;
+        this.posts.set(post.id, post);
+      }
+    }
+    
+    return comment;
+  }
+  
+  async updateComment(id: number, text: string): Promise<Comment | undefined> {
+    const comment = this.comments.get(id);
+    
+    if (!comment) {
+      return undefined;
+    }
+    
+    const updatedComment: Comment = {
+      ...comment,
+      text,
+      updatedAt: new Date()
+    };
+    
+    this.comments.set(id, updatedComment);
+    return updatedComment;
+  }
+  
+  async deleteComment(id: number): Promise<void> {
+    const comment = this.comments.get(id);
+    
+    if (comment) {
+      this.comments.delete(id);
+      
+      // Update comment count on the content
+      if (comment.contentType === 'track') {
+        const track = this.tracks.get(comment.contentId);
+        if (track && (track as any).commentCount > 0) {
+          (track as any).commentCount -= 1;
+          this.tracks.set(track.id, track);
+        }
+      } else if (comment.contentType === 'post') {
+        const post = this.posts.get(comment.contentId);
+        if (post && post.commentCount > 0) {
+          post.commentCount -= 1;
+          this.posts.set(post.id, post);
+        }
+      }
+    }
+  }
+  
+  async getCommentsByContent(contentId: number, contentType: string): Promise<Comment[]> {
+    return Array.from(this.comments.values())
+      .filter(c => c.contentId === contentId && c.contentType === contentType && !c.parentId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+  
+  async getReplies(commentId: number): Promise<Comment[]> {
+    return Array.from(this.comments.values())
+      .filter(c => c.parentId === commentId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+  
+  // Track play count
+  async incrementTrackPlayCount(trackId: number): Promise<void> {
+    const track = this.tracks.get(trackId);
+    if (track) {
+      track.playCount += 1;
+      this.tracks.set(trackId, track);
+    }
+  }
+  
   // Creators
   async getRecommendedCreators(): Promise<User[]> {
     return Array.from(this.users.values())
