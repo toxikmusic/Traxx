@@ -273,6 +273,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.get("/api/follows/check", async (req, res) => {
+    try {
+      const { followerId, followedId } = req.query;
+      
+      if (!followerId || !followedId) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+      
+      const isFollowing = await storage.isFollowing(
+        parseInt(followerId as string), 
+        parseInt(followedId as string)
+      );
+      
+      res.status(200).json({ isFollowing });
+    } catch (error) {
+      res.status(500).json({ message: "Error checking follow status" });
+    }
+  });
+  
+  app.get("/api/follows/followers/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const followers = await storage.getFollowers(userId);
+      res.status(200).json(followers);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting followers" });
+    }
+  });
+  
+  app.get("/api/follows/following/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const following = await storage.getFollowing(userId);
+      res.status(200).json(following);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting following users" });
+    }
+  });
+  
   app.delete("/api/follows/:userId", async (req, res) => {
     const followedId = parseInt(req.params.userId);
     if (isNaN(followedId)) {
@@ -288,6 +337,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await storage.decrementFollowerCount(followedId);
     
     res.status(204).send();
+  });
+  
+  // Likes endpoints
+  app.post("/api/likes", async (req, res) => {
+    try {
+      const likeData = insertLikeSchema.parse(req.body);
+      const like = await storage.createLike(likeData);
+      res.status(201).json(like);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid like data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating like" });
+    }
+  });
+  
+  app.delete("/api/likes", async (req, res) => {
+    try {
+      const { userId, contentId, contentType } = req.body;
+      
+      if (!userId || !contentId || !contentType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      await storage.removeLike(userId, contentId, contentType);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error removing like" });
+    }
+  });
+  
+  app.get("/api/likes/check", async (req, res) => {
+    try {
+      const { userId, contentId, contentType } = req.query;
+      
+      if (!userId || !contentId || !contentType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const isLiked = await storage.isLiked(
+        parseInt(userId as string), 
+        parseInt(contentId as string), 
+        contentType as string
+      );
+      
+      res.status(200).json({ isLiked });
+    } catch (error) {
+      res.status(500).json({ message: "Error checking like status" });
+    }
+  });
+  
+  app.get("/api/likes/count/:contentType/:contentId", async (req, res) => {
+    try {
+      const { contentType, contentId } = req.params;
+      const count = await storage.getLikeCount(parseInt(contentId), contentType);
+      res.status(200).json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "Error getting like count" });
+    }
+  });
+  
+  app.get("/api/likes/user/:userId/:contentType", async (req, res) => {
+    try {
+      const { userId, contentType } = req.params;
+      const likedContentIds = await storage.getUserLikes(parseInt(userId), contentType);
+      res.status(200).json(likedContentIds);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting user likes" });
+    }
+  });
+  
+  // Comments endpoints
+  app.post("/api/comments", async (req, res) => {
+    try {
+      const commentData = insertCommentSchema.parse(req.body);
+      const comment = await storage.createComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid comment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error creating comment" });
+    }
+  });
+  
+  app.put("/api/comments/:commentId", async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.commentId);
+      const { text } = req.body;
+      
+      if (isNaN(commentId) || !text) {
+        return res.status(400).json({ message: "Invalid comment data" });
+      }
+      
+      const updatedComment = await storage.updateComment(commentId, text);
+      
+      if (!updatedComment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      res.status(200).json(updatedComment);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating comment" });
+    }
+  });
+  
+  app.delete("/api/comments/:commentId", async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.commentId);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      await storage.deleteComment(commentId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error deleting comment" });
+    }
+  });
+  
+  app.get("/api/comments/:contentType/:contentId", async (req, res) => {
+    try {
+      const { contentType, contentId } = req.params;
+      const comments = await storage.getCommentsByContent(parseInt(contentId), contentType);
+      res.status(200).json(comments);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting comments" });
+    }
+  });
+  
+  app.get("/api/comments/replies/:commentId", async (req, res) => {
+    try {
+      const commentId = parseInt(req.params.commentId);
+      
+      if (isNaN(commentId)) {
+        return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      const replies = await storage.getReplies(commentId);
+      res.status(200).json(replies);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting comment replies" });
+    }
   });
   
   // User Settings
