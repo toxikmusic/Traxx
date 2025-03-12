@@ -130,6 +130,9 @@ export const getQueryFn: <T>(options: {
     try {
       console.log(`Query fetch to ${url}`);
       
+      // Check if document has valid cookie
+      console.log("Current cookies:", document.cookie);
+      
       const res = await fetch(url, {
         credentials: "include", // Always include credentials for cookie-based auth
         headers: {
@@ -143,6 +146,10 @@ export const getQueryFn: <T>(options: {
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
         console.log("Unauthorized, returning null as configured");
+        // If we're getting 401 repeatedly, we might need to redirect to login
+        if (url === '/api/user' && !document.cookie.includes('connect.sid')) {
+          console.log("No session cookie found, auth system may need refresh");
+        }
         return null;
       }
 

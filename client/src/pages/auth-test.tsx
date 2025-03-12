@@ -93,10 +93,17 @@ export default function AuthTest() {
   };
 
   const checkCookies = () => {
-    console.log("Document cookies:", document.cookie);
+    const cookieData = document.cookie;
+    console.log("Document cookies:", cookieData);
+    
+    // Parse connect.sid cookie if it exists
+    const connectSid = cookieData.split(';').find(c => c.trim().startsWith('connect.sid='));
+    
     toast({
       title: "Cookie Check",
-      description: document.cookie ? "Cookies found. Check console for details." : "No cookies found."
+      description: cookieData 
+        ? `Cookies found: ${cookieData.length} chars. Session cookie: ${connectSid ? "Found" : "Missing"}`
+        : "No cookies found."
     });
   };
 
