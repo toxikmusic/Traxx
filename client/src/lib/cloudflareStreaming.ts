@@ -22,15 +22,24 @@ export interface CloudflareStreamStatus {
 
 interface StreamKeyResponse {
   streamKey: string;
+  rtmpsKey?: string;
   rtmpsUrl: string;
+  playbackKey?: string;
   playbackUrl: string;
+  webRtcUrl?: string;
+  webRtcPlayUrl?: string;
+  accountId?: string;
 }
 
 class CloudflareStreamingService {
   private streamKey: string = '';
+  private rtmpsKey: string = '';
   private rtmpsUrl: string = 'rtmps://live.cloudflare.com:443/live/';
-  private websocketUrl: string = 'wss://live.cloudflare.com/webrtc/play/';
+  private playbackKey: string = '';
   private playbackUrl: string = '';
+  private webRtcUrl: string = '';
+  private webRtcPlayUrl: string = '';
+  private accountId: string = '';
   private streamStatus: CloudflareStreamStatus = {
     isLive: false,
     viewerCount: 0,
@@ -46,7 +55,7 @@ class CloudflareStreamingService {
       // Set options if provided
       if (options.streamKey) this.streamKey = options.streamKey;
       if (options.rtmpsUrl) this.rtmpsUrl = options.rtmpsUrl;
-      if (options.websocketUrl) this.websocketUrl = options.websocketUrl;
+      if (options.websocketUrl) this.webRtcPlayUrl = options.websocketUrl;
       if (options.playbackUrl) this.playbackUrl = options.playbackUrl;
       
       // If stream key is not provided, fetch it from our API
@@ -64,9 +73,19 @@ class CloudflareStreamingService {
           if (response && response.status === 200 && response.data) {
             const data = response.data as StreamKeyResponse;
             this.streamKey = data.streamKey;
-            this.rtmpsUrl = data.rtmpsUrl;
-            this.playbackUrl = data.playbackUrl;
-            console.log('Successfully fetched Cloudflare stream key');
+            
+            // Store all the new credentials if they exist
+            if (data.rtmpsKey) this.rtmpsKey = data.rtmpsKey;
+            if (data.rtmpsUrl) this.rtmpsUrl = data.rtmpsUrl;
+            if (data.playbackKey) this.playbackKey = data.playbackKey;
+            if (data.playbackUrl) this.playbackUrl = data.playbackUrl;
+            if (data.webRtcUrl) this.webRtcUrl = data.webRtcUrl;
+            if (data.webRtcPlayUrl) this.webRtcPlayUrl = data.webRtcPlayUrl;
+            if (data.accountId) this.accountId = data.accountId;
+            
+            console.log('Successfully fetched Cloudflare stream key and credentials');
+            console.log(`Stream key: ${this.streamKey}`);
+            console.log(`WebRTC URL: ${this.webRtcUrl}`);
           } else {
             console.error('Failed to fetch Cloudflare stream key');
             return false;
@@ -91,14 +110,24 @@ class CloudflareStreamingService {
    * Get the RTMPS URL for streaming
    */
   getRtmpsUrl(): string {
+    if (this.rtmpsKey) {
+      return `${this.rtmpsUrl}${this.rtmpsKey}`;
+    }
     return `${this.rtmpsUrl}${this.streamKey}`;
+  }
+  
+  /**
+   * Get the WebRTC broadcasting URL 
+   */
+  getWebRtcUrl(): string {
+    return this.webRtcUrl;
   }
   
   /**
    * Get the WebSocket URL for playback
    */
   getWebSocketUrl(): string {
-    return `${this.websocketUrl}${this.streamKey}`;
+    return this.webRtcPlayUrl || `wss://live.cloudflare.com/webrtc/play/${this.streamKey}`;
   }
   
   /**
