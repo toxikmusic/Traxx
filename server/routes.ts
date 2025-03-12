@@ -690,6 +690,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
+      console.log("Raw post request body:", JSON.stringify(req.body));
+      
       // Use authenticated user ID
       const postData = {
         ...req.body,
@@ -703,11 +705,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Ensure tags is properly handled as an array
-      if (postData.tags && !Array.isArray(postData.tags)) {
+      if (!postData.tags) {
+        postData.tags = [];
+      } else if (!Array.isArray(postData.tags)) {
         try {
           // If it's a JSON string, parse it
           if (typeof postData.tags === 'string') {
             postData.tags = JSON.parse(postData.tags);
+          } else {
+            // Convert to array if it's something else
+            postData.tags = [String(postData.tags)];
           }
         } catch (e) {
           // If parsing fails, convert to empty array
@@ -715,18 +722,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log("Processing post with data:", JSON.stringify(postData));
+      // Create a custom schema with more specific validation requirements
+      const extendedPostSchema = z.object({
+        userId: z.number(),
+        title: z.string().min(1, "Title is required"),
+        content: z.string().min(1, "Content is required"),
+        postType: z.enum([PostType.TEXT, PostType.IMAGE], { 
+          errorMap: () => ({ message: "Post type must be 'text' or 'image'" }) 
+        }),
+        tags: z.array(z.string()).optional().default([]),
+        imageUrl: z.string().nullable().optional(),
+      });
       
-      const validatedData = insertPostSchema.parse(postData);
+      console.log("Processing post with prepared data:", JSON.stringify(postData));
+      
+      const validatedData = extendedPostSchema.parse(postData);
+      console.log("Validated post data:", JSON.stringify(validatedData));
+      
       const post = await storage.createPost(validatedData);
       res.status(201).json(post);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Zod validation error:", error.errors);
-        return res.status(400).json({ message: "Invalid post data", errors: error.errors });
+        console.error("Zod validation error:", JSON.stringify(error.errors));
+        return res.status(400).json({ 
+          message: "Invalid post data: " + error.errors.map(e => e.message).join(", "), 
+          errors: error.errors 
+        });
       }
       console.error("Error creating post:", error);
-      res.status(500).json({ message: "Error creating post", error: String(error) });
+      res.status(500).json({ 
+        message: "Error creating post: " + (error instanceof Error ? error.message : "Unknown error"),
+        error: String(error)
+      });
     }
   });
   
