@@ -1,9 +1,22 @@
 import { useState } from "react";
-import { Play, Pause, Heart, Music } from "lucide-react";
+import { Play, Pause, Heart, Music, ListPlus, MoreHorizontal } from "lucide-react";
 import { useAudioPlayer } from "@/context/AudioPlayerContext";
 import { Track } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 interface TrackCardProps {
   track: Track;
@@ -11,8 +24,9 @@ interface TrackCardProps {
 }
 
 export default function TrackCard({ track, showBadge = false }: TrackCardProps) {
-  const { currentTrack, isPlaying, playTrack, togglePlayPause } = useAudioPlayer();
+  const { currentTrack, isPlaying, playTrack, togglePlayPause, addToQueue, addTrackAndPlayNext } = useAudioPlayer();
   const isCurrentTrack = currentTrack?.id === track.id;
+  const { toast } = useToast();
   
   // Format duration from seconds to mm:ss
   const formatDuration = (seconds: number) => {
@@ -21,12 +35,32 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handlePlayClick = () => {
+  const handlePlayClick = (e: React.MouseEvent) => {
     if (isCurrentTrack) {
       togglePlayPause();
     } else {
       playTrack(track);
     }
+  };
+
+  const handleAddToQueue = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from triggering
+    addToQueue(track);
+    toast({
+      title: "Added to queue",
+      description: `${track.title} by ${track.artistName} added to your queue`,
+      duration: 3000,
+    });
+  };
+
+  const handlePlayNext = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from triggering
+    addTrackAndPlayNext(track);
+    toast({
+      title: "Playing next",
+      description: `${track.title} by ${track.artistName} will play next`,
+      duration: 3000,
+    });
   };
 
   // Get play count and like count with fallbacks
@@ -80,7 +114,45 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               )}
             </div>
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">{formatDuration(track.duration)}</p>
+              <div className="flex items-center space-x-2">
+                <p className="text-xs text-muted-foreground">{formatDuration(track.duration)}</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        className="text-muted-foreground hover:text-primary"
+                        onClick={handleAddToQueue}
+                      >
+                        <ListPlus size={16} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Add to queue</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <button className="text-muted-foreground hover:text-primary">
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handlePlayNext}>
+                      Play next
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleAddToQueue}>
+                      Add to queue
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                      Like track
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                      Share
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <div className="flex items-center mt-1 space-x-3 text-muted-foreground text-xs">
                 <span className="flex items-center">
                   <Play className="h-3 w-3 mr-1" /> {playCount.toLocaleString()}
