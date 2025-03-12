@@ -713,8 +713,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // Set up WebSocket server
+  // Set up WebSocket servers
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Set up separate WebSocket server for audio streaming
+  const audioStreamingWss = new WebSocketServer({ server: httpServer, path: '/audio' });
   
   // Types for WebSocket messages
   type ChatMessage = {
@@ -915,6 +918,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add endpoint to end a stream
+  // Map to track audio streaming connections for each stream
+  const audioStreamConnections = new Map<number, { broadcaster: WebSocket | null, listeners: Set<WebSocket> }>();
+  
+  // Handle audio streaming WebSocket connections
+  audioStreamingWss.on('connection', (ws, req) => {
+    log('New audio streaming WebSocket connection established', 'websocket');
+    
+    // Parse URL to get stream ID and determine if this is a broadcaster or listener
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const pathParts = url.pathname.split('/');
+    const streamId = parseInt(pathParts[1] || '0');
+    const isBroadcaster = url.searchParams.get('role') === 'broadcaster';
+    
+    if (streamId <= 0) {
+      ws.close(1008, 'Invalid stream ID');
+      return;
+    }
+    
+    // Create connection entry for this stream if it doesn't exist
+    if (!audioStreamConnections.has(streamId)) {
+      audioStreamConnections.set(streamId, {
+        broadcaster: null,
+        listeners: new Set()
+      });
+    }
+    
+    const streamConnections = audioStreamConnections.get(streamId)!;
+    
+    // Set up connection based on role
+    if (isBroadcaster) {
+      // If there's already a broadcaster, reject this connection
+      if (streamConnections.broadcaster && 
+          streamConnections.broadcaster.readyState === WebSocket.OPEN) {
+        ws.close(1008, 'Stream already has a broadcaster');
+        return;
+      }
+      
+      log(`Broadcaster connected for stream ${streamId}`, 'websocket');
+      streamConnections.broadcaster = ws;
+      
+      // Update stream status to live
+      storage.updateStream(streamId, { isLive: true }).catch(err => {
+        log(`Error updating stream status: ${err}`, 'websocket');
+      });
+      
+      // Handle broadcaster messages (audio data)
+      ws.on('message', (audioData) => {
+        // Broadcast audio data to all listeners
+        streamConnections.listeners.forEach(listener => {
+          if (listener.readyState === WebSocket.OPEN) {
+            try {
+              listener.send(audioData);
+            } catch (error) {
+              log(`Error sending audio data to listener: ${error}`, 'websocket');
+            }
+          }
+        });
+      });
+      
+      // Handle broadcaster disconnection
+      ws.on('close', () => {
+        log(`Broadcaster disconnected for stream ${streamId}`, 'websocket');
+        streamConnections.broadcaster = null;
+        
+        // Update stream status to not live
+        storage.updateStream(streamId, { isLive: false }).catch(err => {
+          log(`Error updating stream status: ${err}`, 'websocket');
+        });
+        
+        // Notify all listeners that the stream ended
+        streamConnections.listeners.forEach(listener => {
+          if (listener.readyState === WebSocket.OPEN) {
+            try {
+              // Send an empty buffer or end signal
+              listener.close(1000, 'Stream ended');
+            } catch (error) {
+              log(`Error closing listener connection: ${error}`, 'websocket');
+            }
+          }
+        });
+        
+        // Clean up if no more connections
+        if (streamConnections.listeners.size === 0) {
+          audioStreamConnections.delete(streamId);
+        }
+      });
+    } else {
+      // This is a listener
+      log(`Listener connected for stream ${streamId}`, 'websocket');
+      streamConnections.listeners.add(ws);
+      
+      // Handle listener disconnection
+      ws.on('close', () => {
+        log(`Listener disconnected from stream ${streamId}`, 'websocket');
+        streamConnections.listeners.delete(ws);
+        
+        // Clean up if no more connections and no broadcaster
+        if (streamConnections.listeners.size === 0 && 
+            (!streamConnections.broadcaster || 
+             streamConnections.broadcaster.readyState !== WebSocket.OPEN)) {
+          audioStreamConnections.delete(streamId);
+        }
+      });
+    }
+  });
+  
+  // Add REST endpoint for stream status check
+  app.get("/api/streams/:id/status", async (req, res) => {
+    const streamId = parseInt(req.params.id);
+    if (isNaN(streamId)) {
+      return res.status(400).json({ message: "Invalid stream ID" });
+    }
+    
+    const stream = await storage.getStream(streamId);
+    if (!stream) {
+      return res.status(404).json({ message: "Stream not found" });
+    }
+    
+    const streamConnections = audioStreamConnections.get(streamId);
+    const isLive = stream.isLive && 
+                  streamConnections?.broadcaster && 
+                  streamConnections.broadcaster.readyState === WebSocket.OPEN;
+    
+    const viewerCount = streamConnections?.listeners.size || 0;
+    
+    res.json({
+      id: streamId,
+      isLive,
+      viewerCount,
+      startTime: stream.startedAt
+    });
+  });
+  
   app.post("/api/streams/:id/end", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -938,7 +1074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Update stream state to not live
     await storage.updateStream(streamId, { isLive: false });
     
-    // Notify all connected clients
+    // Notify all connected chat clients
     const connections = streamConnections.get(streamId);
     if (connections) {
       connections.forEach(client => {
@@ -953,7 +1089,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
     
-    // Clean up resources
+    // End audio stream if active
+    const audioConnections = audioStreamConnections.get(streamId);
+    if (audioConnections && audioConnections.broadcaster) {
+      if (audioConnections.broadcaster.readyState === WebSocket.OPEN) {
+        audioConnections.broadcaster.close(1000, 'Stream ended by user');
+      }
+      
+      // Close all listener connections
+      audioConnections.listeners.forEach(listener => {
+        if (listener.readyState === WebSocket.OPEN) {
+          listener.close(1000, 'Stream ended by user');
+        }
+      });
+      
+      // Clean up resources
+      audioStreamConnections.delete(streamId);
+    }
+    
+    // Clean up chat resources
     streamConnections.delete(streamId);
     streamMessages.delete(streamId);
     
