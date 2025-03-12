@@ -87,6 +87,13 @@ export default function AuthPage() {
                 ? "Sign in to your account to continue"
                 : "Create a new account and start streaming"}
             </p>
+            {activeTab === "login" && (
+              <div className="text-xs text-muted-foreground mt-2 p-2 border border-gray-200 rounded-md bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+                <p><strong>Demo accounts:</strong></p>
+                <p>Username: <span className="font-mono">djshadow</span> / Password: <span className="font-mono">password123</span></p>
+                <p>Username: <span className="font-mono">basstheory</span> / Password: <span className="font-mono">password123</span></p>
+              </div>
+            )}
           </div>
 
           <Tabs
