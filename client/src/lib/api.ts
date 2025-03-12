@@ -75,7 +75,10 @@ export async function getStreamsByUser(userId: number): Promise<Stream[]> {
 export async function createStream(data: Partial<Stream>): Promise<Stream> {
   return await apiRequest<Stream>("/api/streams", {
     method: "POST",
-    body: JSON.stringify(data)
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: data  // Remove JSON.stringify since apiRequest already does that
   });
 }
 
