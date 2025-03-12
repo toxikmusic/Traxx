@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 import { securityHeaders, rateLimiter, corsHandler } from "./middleware/security";
+import { errorHandler, notFoundHandler } from "./middleware/error-handler";
 
 // Validate critical environment variables in production
 function validateEnvironment() {
@@ -77,27 +78,11 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const isProd = process.env.NODE_ENV === 'production';
-    
-    // In production, provide limited error information
-    const message = err.message || "Internal Server Error";
-    
-    // Log the full error in all environments
-    console.error("Server error:", err);
-    
-    // Send appropriate response based on environment
-    res.status(status).json({ 
-      message,
-      ...(isProd ? {} : { stack: err.stack })
-    });
-    
-    // Don't throw in production as it can crash the server
-    if (!isProd) {
-      throw err;
-    }
-  });
+  // API routes that weren't matched (404 handler)
+  app.use('/api/*', notFoundHandler);
+  
+  // Global error handler (must be the last middleware)
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
