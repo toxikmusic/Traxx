@@ -19,6 +19,7 @@ import Library from "@/pages/library";
 import GoLive from "@/pages/go-live";
 import AuthPage from "@/pages/auth-page";
 import UploadTrack from "@/pages/upload-track";
+import Dashboard from "@/pages/dashboard";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <ProtectedRoute path="/library" component={Library} />
       <ProtectedRoute path="/go-live" component={GoLive} />
       <ProtectedRoute path="/upload-track" component={UploadTrack} />
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
