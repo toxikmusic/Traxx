@@ -1408,52 +1408,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
   
-  // Cloudflare API test endpoint - protected route
-  app.get("/api/admin/test-cloudflare", async (req, res) => {
-    // Ensure user is authenticated
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ 
-        success: false, 
-        message: "Authentication required"
-      });
-    }
-    
-    try {
-      // Check if we have Cloudflare API key
-      const apiKey = process.env.CLOUDFLARE_API_KEY;
-      
-      if (!apiKey) {
-        return res.status(400).json({
-          success: false,
-          message: "Cloudflare API key not found in environment variables"
-        });
-      }
-      
-      // Simple test request to Cloudflare API
-      const response = await axios({
-        method: 'GET',
-        url: 'https://api.cloudflare.com/client/v4/user/tokens/verify',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      return res.status(200).json({
-        success: true,
-        message: "Cloudflare API key is valid",
-        details: response.data
-      });
-    } catch (error: any) {
-      console.error("Cloudflare API test failed:", error);
-      
-      return res.status(500).json({
-        success: false,
-        message: "Failed to verify Cloudflare API key",
-        error: error.response?.data || (error instanceof Error ? error.message : String(error))
-      });
-    }
-  });
+  // Cloudflare API test endpoint is implemented above (line ~865)
+  // This duplicate was removed to prevent route conflicts
 
   return httpServer;
 }
