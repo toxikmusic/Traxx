@@ -61,6 +61,13 @@ export async function getStreamsByUser(userId: number): Promise<Stream[]> {
   return await apiRequest<Stream[]>(`/api/streams/user/${userId}`);
 }
 
+export async function createStream(data: Partial<Stream>): Promise<Stream> {
+  return await apiRequest<Stream>("/api/streams", {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+}
+
 // Creators
 export async function getRecommendedCreators(): Promise<User[]> {
   return await apiRequest<User[]>("/api/creators/recommended");
