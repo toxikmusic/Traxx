@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Radio, Video, BookmarkIcon } from "lucide-react";
+import { Home, Radio, Video, BookmarkIcon, LayoutDashboard } from "lucide-react";
 
 export default function MobileNavigation() {
   const [location] = useLocation();
@@ -23,6 +23,14 @@ export default function MobileNavigation() {
         >
           <Radio size={16} />
           <span className="text-xs mt-1">Streams</span>
+        </Link>
+        
+        <Link 
+          href="/dashboard" 
+          className={`flex flex-col items-center ${isActive('/dashboard') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition`}
+        >
+          <LayoutDashboard size={16} />
+          <span className="text-xs mt-1">Dashboard</span>
         </Link>
         
         <Link 
