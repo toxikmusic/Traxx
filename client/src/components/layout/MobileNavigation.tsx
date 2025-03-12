@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Compass, Video, BookmarkIcon } from "lucide-react";
+import { Home, Radio, Video, BookmarkIcon } from "lucide-react";
 
 export default function MobileNavigation() {
   const [location] = useLocation();
@@ -18,11 +18,11 @@ export default function MobileNavigation() {
         </Link>
         
         <Link 
-          href="/discover" 
-          className={`flex flex-col items-center ${isActive('/discover') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition`}
+          href="/streams" 
+          className={`flex flex-col items-center ${isActive('/streams') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition`}
         >
-          <Compass size={16} />
-          <span className="text-xs mt-1">Discover</span>
+          <Radio size={16} />
+          <span className="text-xs mt-1">Streams</span>
         </Link>
         
         <Link 
