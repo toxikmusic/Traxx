@@ -32,7 +32,7 @@ export async function createPost(data: any): Promise<Post> {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(data),
+      body: data,  // Remove JSON.stringify since apiRequest already does that
     });
     console.log("API: Post creation successful:", response);
     return response;
@@ -50,7 +50,10 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
 export async function updateUserSettings(userId: number, data: Partial<UserSettings>): Promise<UserSettings> {
   return await apiRequest<UserSettings>(`/api/user-settings/${userId}`, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: data,  // Remove JSON.stringify since apiRequest already does that
   });
 }
 
