@@ -59,7 +59,49 @@ const upload = multer({
   }
 });
 
+// Utility function to check if we're in production mode
+function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+// Middleware to block test routes in production
+function blockTestRoutesInProduction(req: Request, res: any, next: Function) {
+  if (isProduction() || process.env.DISABLE_TEST_ROUTES === 'true') {
+    if (req.path.startsWith('/api/test') || req.path.includes('/test/')) {
+      console.warn(`[SECURITY] Blocked access to test endpoint in production: ${req.path}`);
+      return res.status(404).json({ error: 'Endpoint not found' });
+    }
+  }
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add health check endpoint (useful for load balancers, monitoring tools)
+  app.get('/health', (req, res) => {
+    const dbStatus = storage ? 'connected' : 'disconnected';
+    
+    res.status(200).json({ 
+      status: 'ok',
+      environment: process.env.NODE_ENV || 'development',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.env.npm_package_version || 'unknown',
+      database: dbStatus
+    });
+  });
+  
+  // Add version endpoint for monitoring deploys
+  app.get('/api/version', (req, res) => {
+    res.status(200).json({
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      builtAt: process.env.BUILD_DATE || new Date().toISOString()
+    });
+  });
+
+  // Apply middleware to block test routes in production
+  app.use(blockTestRoutesInProduction);
+  
   // Setup auth routes with Passport
   setupAuth(app);
   
