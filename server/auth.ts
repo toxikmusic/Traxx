@@ -29,18 +29,31 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
+  const isProd = process.env.NODE_ENV === 'production';
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "beatstream-secret-key",
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+      secure: isProd ? (process.env.SESSION_COOKIE_SECURE === 'true') : false,
       httpOnly: true, // Prevents client-side JS from reading the cookie
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: 'lax' // Allows cookies to be sent in top-level navigations
+      maxAge: isProd && process.env.SESSION_COOKIE_MAXAGE ? 
+              parseInt(process.env.SESSION_COOKIE_MAXAGE) : 
+              30 * 24 * 60 * 60 * 1000, // Default: 30 days
+      sameSite: isProd ? 'strict' : 'lax' // Stricter in production
     }
   };
+  
+  // Log session configuration in development
+  if (!isProd) {
+    console.log('Session configuration:', {
+      secure: sessionSettings.cookie?.secure,
+      maxAge: sessionSettings.cookie?.maxAge,
+      sameSite: sessionSettings.cookie?.sameSite
+    });
+  }
 
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
@@ -57,12 +70,14 @@ export function setupAuth(app: Express) {
           return done(null, false);
         }
 
-        // For demo accounts and development, allow direct comparison with plaintext passwords
-        // In production, this would only use the secure password comparison
-        if (user.password === password) {
-          console.log(`User ${username} authenticated with plaintext password`);
+        const isProd = process.env.NODE_ENV === 'production';
+        
+        // For demo accounts and development only, allow direct comparison with plaintext passwords
+        if (!isProd && user.password === password) {
+          console.log(`User ${username} authenticated with plaintext password (dev only)`);
           return done(null, user);
         } else if (await comparePasswords(password, user.password)) {
+          // Secure password comparison works in all environments
           console.log(`User ${username} authenticated with hashed password`);
           return done(null, user);
         } else {
