@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -34,9 +35,10 @@ export default function SettingsPage() {
   // Get the authenticated user's ID
   const { user } = useAuth();
   
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['/api/user-settings', userId],
-    queryFn: () => getUserSettings(userId),
+  const { data: settings, isLoading, isError } = useQuery({
+    queryKey: ['/api/user-settings', user?.id],
+    queryFn: () => user ? getUserSettings(user.id) : Promise.reject('No authenticated user'),
+    enabled: !!user, // Only run the query if we have a user
   });
   
   const [selectedColor, setSelectedColor] = useState<string | null>(primaryColor);
@@ -59,13 +61,15 @@ export default function SettingsPage() {
   };
   
   const updateSettingsMutation = useMutation({
-    mutationFn: (data: any) => updateUserSettings(userId, data),
+    mutationFn: (data: any) => user ? updateUserSettings(user.id, data) : Promise.reject('No authenticated user'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user-settings', userId] });
-      toast({
-        title: "Settings Updated",
-        description: "Your preferences have been saved successfully.",
-      });
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ['/api/user-settings', user.id] });
+        toast({
+          title: "Settings Updated",
+          description: "Your preferences have been saved successfully.",
+        });
+      }
     },
     onError: () => {
       toast({
@@ -77,6 +81,15 @@ export default function SettingsPage() {
   });
   
   const saveSettings = () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save settings",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateSettingsMutation.mutate({
       uiColor: selectedColor,
       enableAutoplay,
