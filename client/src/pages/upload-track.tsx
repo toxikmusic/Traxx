@@ -147,7 +147,7 @@ export default function UploadTrackPage() {
         userId: user.id,
         title: values.title,
         artistName: values.artistName,
-        genre: values.genre || null,
+        genre: values.genre === "none" ? null : values.genre,
         audioUrl: audioResult.url,
         coverUrl: coverUrl,
         duration: audioResult.duration,
@@ -253,7 +253,7 @@ export default function UploadTrackPage() {
                           </SelectItem>
                         ) : (
                           <>
-                            <SelectItem value="">None</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
                             {genres.map((genre) => (
                               <SelectItem key={genre.id} value={genre.name}>
                                 {genre.name}
