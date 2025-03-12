@@ -2,6 +2,7 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import axios from "axios";
 import { 
   insertUserSchema, 
   insertStreamSchema, 
@@ -152,6 +153,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid stream data", errors: error.errors });
       }
       res.status(500).json({ message: "Error creating stream" });
+    }
+  });
+  
+  // Cloudflare Streaming Integration
+  app.get("/api/cloudflare/stream-key", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const cloudflareApiKey = process.env.CLOUDFLARE_API_KEY;
+      if (!cloudflareApiKey) {
+        return res.status(500).json({ message: "Cloudflare API key not configured" });
+      }
+      
+      // For demo purposes, we'll just return a modified version of the API key
+      // In a real implementation, we would make an API call to Cloudflare to get a stream key
+      const streamKey = cloudflareApiKey.substring(0, 16);
+      
+      res.json({
+        streamKey,
+        rtmpsUrl: 'rtmps://live.cloudflare.com:443/live/',
+        playbackUrl: `https://customer-streams.cloudflarestream.com/${streamKey}/manifest/video.m3u8`
+      });
+    } catch (error) {
+      console.error("Error fetching Cloudflare stream key:", error);
+      res.status(500).json({ message: "Error fetching stream key" });
     }
   });
   
