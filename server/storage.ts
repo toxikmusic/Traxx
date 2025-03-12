@@ -915,7 +915,7 @@ export class MemStorage implements IStorage {
         title: "Morning Coffee & Beats",
         content: "Nothing better than starting the day with coffee and making some chill beats.",
         imageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=400&q=80",
-        postType: "image",
+        postType: PostType.IMAGE,
         tags: ["Lofi", "Coffee", "Morning"]
       }
     ];

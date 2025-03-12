@@ -10,7 +10,9 @@ import {
   insertUserSettingsSchema,
   insertPostSchema,
   insertLikeSchema,
-  insertCommentSchema
+  insertCommentSchema,
+  PostType,
+  type PostTypeValues
 } from "@shared/schema";
 import { setupAuth } from "./auth";
 import multer from "multer";
@@ -694,9 +696,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       };
       
-      // Ensure postType is either "text" or "image"
-      if (postData.postType !== 'text' && postData.postType !== 'image') {
-        return res.status(400).json({ message: "Invalid post type. Must be 'text' or 'image'" });
+      // Ensure postType is a valid enum value
+      if (postData.postType !== PostType.TEXT && postData.postType !== PostType.IMAGE) {
+        return res.status(400).json({ message: `Invalid post type. Must be '${PostType.TEXT}' or '${PostType.IMAGE}'` });
       }
       
       const validatedData = insertPostSchema.parse(postData);
