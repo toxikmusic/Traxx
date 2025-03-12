@@ -112,6 +112,13 @@ export const insertFollowSchema = createInsertSchema(follows).pick({
 });
 
 // Post model (for user's images and text posts)
+export const PostType = {
+  TEXT: "text",
+  IMAGE: "image"
+} as const;
+
+export type PostTypeValues = typeof PostType[keyof typeof PostType];
+
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -120,7 +127,7 @@ export const posts = pgTable("posts", {
   imageUrl: text("image_url"),
   likeCount: integer("like_count").default(0),
   commentCount: integer("comment_count").default(0),
-  postType: text("post_type").default("text"), // Options: text, image
+  postType: text("post_type").default("text").$type<PostTypeValues>(), // Options: text, image
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   tags: text("tags").array()
