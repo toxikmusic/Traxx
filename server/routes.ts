@@ -361,9 +361,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Likes endpoints
   app.post("/api/likes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
-      const likeData = insertLikeSchema.parse(req.body);
-      const like = await storage.createLike(likeData);
+      // Use authenticated user ID
+      const likeData = {
+        ...req.body,
+        userId: req.user.id
+      };
+      
+      const validatedData = insertLikeSchema.parse(likeData);
+      const like = await storage.createLike(validatedData);
       res.status(201).json(like);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -374,10 +384,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.delete("/api/likes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     try {
-      const { userId, contentId, contentType } = req.body;
+      const { contentId, contentType } = req.body;
+      const userId = req.user.id;
       
-      if (!userId || !contentId || !contentType) {
+      if (!contentId || !contentType) {
         return res.status(400).json({ message: "Missing required fields" });
       }
       
@@ -430,10 +445,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Comments endpoints
   app.post("/api/comments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
-      const commentData = insertCommentSchema.parse(req.body);
-      const comment = await storage.createComment(commentData);
-      res.status(201).json(comment);
+      // Use authenticated user ID
+      const commentData = {
+        ...req.body,
+        userId: req.user.id
+      };
+      
+      const validatedData = insertCommentSchema.parse(commentData);
+      const comment = await storage.createComment(validatedData);
+      
+      // Fetch user data to include in response for immediate display
+      const user = await storage.getUser(req.user.id);
+      
+      // Add username to response for easy display
+      const responseData = {
+        ...comment,
+        username: user?.displayName || user?.username || 'Unknown User'
+      };
+      
+      res.status(201).json(responseData);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid comment data", errors: error.errors });
@@ -443,12 +478,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.put("/api/comments/:commentId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
       const commentId = parseInt(req.params.commentId);
       const { text } = req.body;
       
       if (isNaN(commentId) || !text) {
         return res.status(400).json({ message: "Invalid comment data" });
+      }
+      
+      // Get the comment to verify ownership
+      const comment = await storage.getComment(commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      // Verify the user owns this comment
+      if (comment.userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only edit your own comments" });
       }
       
       const updatedComment = await storage.updateComment(commentId, text);
@@ -464,11 +515,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.delete("/api/comments/:commentId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
       const commentId = parseInt(req.params.commentId);
       
       if (isNaN(commentId)) {
         return res.status(400).json({ message: "Invalid comment ID" });
+      }
+      
+      // Get the comment to verify ownership
+      const comment = await storage.getComment(commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      // Verify the user owns this comment
+      if (comment.userId !== req.user.id) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
       }
       
       await storage.deleteComment(commentId);
@@ -505,9 +572,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // User Settings
   app.get("/api/user-settings/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    // Only allow users to access their own settings
+    if (userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only access your own settings" });
     }
     
     const settings = await storage.getUserSettings(userId);
@@ -526,9 +602,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/user-settings", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
-      const settingsData = insertUserSettingsSchema.parse(req.body);
-      const settings = await storage.createUserSettings(settingsData);
+      // Ensure user can only create their own settings
+      const settingsData = {
+        ...req.body,
+        userId: req.user.id
+      };
+      
+      const validatedData = insertUserSettingsSchema.parse(settingsData);
+      const settings = await storage.createUserSettings(validatedData);
       res.status(201).json(settings);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -539,9 +625,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.patch("/api/user-settings/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    // Only allow users to update their own settings
+    if (userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only update your own settings" });
     }
     
     try {
@@ -588,9 +683,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/posts", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
-      const postData = insertPostSchema.parse(req.body);
-      const post = await storage.createPost(postData);
+      // Use authenticated user ID
+      const postData = {
+        ...req.body,
+        userId: req.user.id
+      };
+      
+      const validatedData = insertPostSchema.parse(postData);
+      const post = await storage.createPost(validatedData);
       res.status(201).json(post);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -811,6 +916,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Add endpoint to end a stream
   app.post("/api/streams/:id/end", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     const streamId = parseInt(req.params.id);
     if (isNaN(streamId)) {
       return res.status(400).json({ message: "Invalid stream ID" });
@@ -819,6 +928,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const stream = await storage.getStream(streamId);
     if (!stream) {
       return res.status(404).json({ message: "Stream not found" });
+    }
+    
+    // Only allow the stream owner to end it
+    if (stream.userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only end your own streams" });
     }
     
     // Update stream state to not live
