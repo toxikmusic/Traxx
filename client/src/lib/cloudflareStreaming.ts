@@ -46,6 +46,7 @@ class CloudflareStreamingService {
   };
   private onStatusChangeCallbacks: ((status: CloudflareStreamStatus) => void)[] = [];
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
+  private credentialsVerified: boolean = false;
   
   /**
    * Initialize the Cloudflare streaming service with options
@@ -173,6 +174,46 @@ class CloudflareStreamingService {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
+    }
+  }
+  
+  /**
+   * Verify Cloudflare credentials are properly configured
+   */
+  async verifyCredentials(): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+      // Call our API test endpoint to verify Cloudflare credentials
+      const response = await apiRequest<any>('GET', '/api/admin/test-cloudflare');
+      this.credentialsVerified = true;
+      return {
+        success: true,
+        message: "Cloudflare credentials verified successfully",
+        details: response
+      };
+    } catch (error: any) {
+      // If there's an authentication error, ask user to login first
+      if (error.status === 401) {
+        return {
+          success: false,
+          message: "Authentication required. Please login first."
+        };
+      }
+      
+      // If there's an API key missing error
+      if (error.status === 400) {
+        return {
+          success: false,
+          message: "Cloudflare API key not configured. Please check your environment variables."
+        };
+      }
+      
+      // For all other errors
+      console.error("Error verifying Cloudflare credentials:", error);
+      return {
+        success: false,
+        message: error.message || "Unknown error verifying Cloudflare credentials",
+        details: error.data
+      };
     }
   }
   
