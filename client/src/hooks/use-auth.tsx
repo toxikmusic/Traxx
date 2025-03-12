@@ -80,12 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await fetch("/api/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include"
+      return await apiRequest<{message: string}>("/api/logout", {
+        method: "POST"
       });
     },
     onSuccess: () => {
