@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
+import { securityHeaders, rateLimiter } from "./middleware/security";
 
 const app = express();
 app.use(express.json());
@@ -45,10 +46,24 @@ app.use((req, res, next) => {
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
+    const isProd = process.env.NODE_ENV === 'production';
+    
+    // In production, provide limited error information
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    
+    // Log the full error in all environments
+    console.error("Server error:", err);
+    
+    // Send appropriate response based on environment
+    res.status(status).json({ 
+      message,
+      ...(isProd ? {} : { stack: err.stack })
+    });
+    
+    // Don't throw in production as it can crash the server
+    if (!isProd) {
+      throw err;
+    }
   });
 
   // importantly only setup vite in development and after
