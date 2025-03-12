@@ -183,6 +183,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Test endpoint for Cloudflare stream key (remove in production)
+  app.get("/api/test/cloudflare/stream-key", async (req, res) => {
+    try {
+      const cloudflareApiKey = process.env.CLOUDFLARE_API_KEY;
+      if (!cloudflareApiKey) {
+        return res.status(500).json({ message: "Cloudflare API key not configured" });
+      }
+      
+      // For demo purposes, we'll just return a modified version of the API key
+      // In a real implementation, we would make an API call to Cloudflare to get a stream key
+      const streamKey = cloudflareApiKey.substring(0, 16);
+      
+      res.json({
+        streamKey,
+        rtmpsUrl: 'rtmps://live.cloudflare.com:443/live/',
+        playbackUrl: `https://customer-streams.cloudflarestream.com/${streamKey}/manifest/video.m3u8`
+      });
+    } catch (error) {
+      console.error("Error fetching Cloudflare stream key:", error);
+      res.status(500).json({ message: "Error fetching stream key" });
+    }
+  });
+  
   // Tracks
   app.get("/api/tracks/recent", async (req, res) => {
     const tracks = await storage.getRecentTracks();

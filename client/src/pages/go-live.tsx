@@ -602,11 +602,14 @@ export default function GoLivePage() {
                       <h3 className="text-sm font-medium">Stream URL</h3>
                       <div className="mt-1 flex">
                         <Input 
-                          value="rtmp://beatstream.live/live" 
+                          value="rtmps://live.cloudflare.com:443/live" 
                           readOnly 
                           className="font-mono text-xs"
                         />
                       </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Powered by Cloudflare Streaming
+                      </p>
                     </div>
                     <div>
                       <h3 className="text-sm font-medium">Stream Key</h3>
