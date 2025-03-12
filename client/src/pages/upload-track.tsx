@@ -97,7 +97,7 @@ export default function UploadTrackPage() {
   // Track creation mutation
   const createTrackMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/tracks", data);
+      const res = await apiRequest("POST", "/api/tracks", { body: JSON.stringify(data) });
       return await res.json();
     },
     onSuccess: () => {
@@ -254,7 +254,7 @@ export default function UploadTrackPage() {
                         ) : (
                           <>
                             <SelectItem value="">None</SelectItem>
-                            {genres?.map((genre: any) => (
+                            {genres.map((genre) => (
                               <SelectItem key={genre.id} value={genre.name}>
                                 {genre.name}
                               </SelectItem>
