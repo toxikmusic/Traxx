@@ -8,7 +8,9 @@ import {
   insertTrackSchema, 
   insertFollowSchema, 
   insertUserSettingsSchema,
-  insertPostSchema 
+  insertPostSchema,
+  insertLikeSchema,
+  insertCommentSchema
 } from "@shared/schema";
 import { setupAuth } from "./auth";
 import multer from "multer";

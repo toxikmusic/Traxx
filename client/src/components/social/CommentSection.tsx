@@ -36,6 +36,7 @@ interface CommentItemProps {
   onReply: (commentId: number) => void;
   onDelete: (commentId: number) => void;
   onEdit: (commentId: number, text: string) => void;
+  username?: string; // Add username separately
 }
 
 function CommentItem({ comment, currentUserId, onReply, onDelete, onEdit }: CommentItemProps) {
