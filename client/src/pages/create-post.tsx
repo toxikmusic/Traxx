@@ -69,8 +69,13 @@ export default function CreatePostPage() {
   // Post creation mutation
   const createPostMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/posts", data);
-      return await res.json();
+      return await apiRequest("/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/posts/recent'] });
@@ -84,9 +89,10 @@ export default function CreatePostPage() {
       navigate("/posts");
     },
     onError: (error) => {
+      console.error("Post creation error:", error);
       toast({
         title: "Failed to create post",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Server error occurred",
         variant: "destructive",
       });
     }
