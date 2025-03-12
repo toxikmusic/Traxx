@@ -345,8 +345,15 @@ export default function StreamPage() {
                     viewerCount: message.viewerCount || 0,
                     peakViewerCount: message.peakViewerCount || 0,
                     streamId: message.streamId,
-                    startTime: message.startTime ? new Date(message.startTime) : undefined
+                    startTime: message.startTime ? new Date(message.startTime) : undefined,
+                    audioLevel: message.audioLevel !== undefined ? message.audioLevel : streamStatus.audioLevel
                   });
+                } else if (message.type === 'audio_level') {
+                  // Handle dedicated audio level updates
+                  setStreamStatus(prev => ({
+                    ...prev,
+                    audioLevel: message.level || prev.audioLevel
+                  }));
                 }
               } catch (e) {
                 console.error("Error parsing control message:", e);
