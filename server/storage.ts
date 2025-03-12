@@ -48,6 +48,8 @@ export interface IStorage {
   getFeaturedStreams(): Promise<Stream[]>;
   getStreamsByUser(userId: number): Promise<Stream[]>;
   createStream(stream: InsertStream): Promise<Stream>;
+  updateStream(id: number, data: Partial<Stream>): Promise<Stream | undefined>;
+  updateStreamViewerCount(id: number, count: number): Promise<void>;
   
   // Tracks
   getTrack(id: number): Promise<Track | undefined>;
@@ -274,6 +276,41 @@ export class MemStorage implements IStorage {
     }
     
     return stream;
+  }
+  
+  async updateStream(id: number, data: Partial<Stream>): Promise<Stream | undefined> {
+    const stream = this.streams.get(id);
+    
+    if (!stream) {
+      return undefined;
+    }
+    
+    const updatedStream = {
+      ...stream,
+      ...data
+    };
+    
+    this.streams.set(id, updatedStream);
+    
+    // If stream is no longer live, update the user streaming status
+    if (data.isLive === false) {
+      const user = this.users.get(stream.userId);
+      if (user) {
+        user.isStreaming = false;
+        this.users.set(user.id, user);
+      }
+    }
+    
+    return updatedStream;
+  }
+  
+  async updateStreamViewerCount(id: number, count: number): Promise<void> {
+    const stream = this.streams.get(id);
+    
+    if (stream) {
+      stream.viewerCount = count;
+      this.streams.set(id, stream);
+    }
   }
   
   // Tracks
