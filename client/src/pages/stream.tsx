@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Slider } from "@/components/ui/slider";
+import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
 
 type ChatMessage = {
   id: number;
@@ -30,11 +31,22 @@ export default function StreamPage() {
   const streamId = params?.id ? parseInt(params.id) : undefined;
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [viewerCount, setViewerCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
+  const [isAudioConnected, setIsAudioConnected] = useState(false);
+  const [volume, setVolume] = useState(0.8);
+  const [isMuted, setIsMuted] = useState(false);
+  const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>({ 
+    isLive: false, 
+    viewerCount: 0, 
+    peakViewerCount: 0 
+  });
   const socketRef = useRef<WebSocket | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -185,6 +197,112 @@ export default function StreamPage() {
       }
     };
   }, [streamId, user, toast]);
+  
+  // Connect to audio stream and handle visualizations
+  useEffect(() => {
+    if (!streamId) return;
+    
+    // Set up audio stream visualization
+    const setupAudioVisualizer = async () => {
+      try {
+        setIsAudioConnected(false);
+        
+        // Get stream URL from server based on streamId
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const audioStreamUrl = `${protocol}//${window.location.host}/audio/${streamId}`;
+        
+        if (audioRef.current) {
+          audioRef.current.src = audioStreamUrl;
+          audioRef.current.volume = volume;
+          
+          // When connected
+          audioRef.current.onplaying = () => {
+            setIsAudioConnected(true);
+            toast({
+              title: "Audio stream connected",
+              description: "You are now listening to the live audio stream.",
+              variant: "default",
+            });
+          };
+          
+          // When disconnected
+          audioRef.current.onerror = () => {
+            setIsAudioConnected(false);
+            toast({
+              title: "Audio stream error",
+              description: "Failed to connect to audio stream. The stream may be offline.",
+              variant: "destructive",
+            });
+          };
+          
+          // Set up audio analyzer for visualization
+          if (canvasRef.current) {
+            // Register visualization handler
+            audioStreamingService.onVisualize((data) => {
+              setFrequencyData(data);
+              drawVisualization(data);
+            });
+            
+            // Register status change handler
+            audioStreamingService.onStatusChange((status) => {
+              setStreamStatus(status);
+              setViewerCount(status.viewerCount);
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error setting up audio stream:", error);
+        toast({
+          title: "Connection error",
+          description: "Failed to connect to audio stream.",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    const drawVisualization = (data: Uint8Array) => {
+      if (!canvasRef.current) return;
+      
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Set up visualization style
+      const barWidth = canvas.width / data.length * 2.5;
+      const barSpacing = 1;
+      const barHeightFactor = canvas.height / 255;
+      
+      // Draw frequency bars
+      ctx.fillStyle = 'rgba(138, 43, 226, 0.8)'; // Purple color matching theme
+      
+      for (let i = 0; i < data.length; i++) {
+        const barHeight = data[i] * barHeightFactor;
+        const x = i * (barWidth + barSpacing);
+        const y = canvas.height - barHeight;
+        
+        // Draw gradient bars
+        const gradient = ctx.createLinearGradient(x, y, x, canvas.height);
+        gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)');
+        gradient.addColorStop(1, 'rgba(185, 103, 255, 0.5)');
+        ctx.fillStyle = gradient;
+        
+        ctx.fillRect(x, y, barWidth, barHeight);
+      }
+    };
+    
+    setupAudioVisualizer();
+    
+    return () => {
+      // Clean up audio connections
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, [streamId, volume, toast]);
   
   // Initialize UI and scroll chat to bottom on load
   useEffect(() => {
@@ -348,6 +466,73 @@ export default function StreamPage() {
                           ))}
                         </div>
                         <p className="text-gray-300">{displayedStream.description}</p>
+                      </div>
+                      
+                      {/* Audio controls and visualizer */}
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-10 w-10 rounded-full"
+                              onClick={() => setIsMuted(!isMuted)}
+                            >
+                              {isMuted ? (
+                                <VolumeX className="h-5 w-5 text-gray-400" />
+                              ) : (
+                                <Volume2 className="h-5 w-5 text-gray-200" />
+                              )}
+                            </Button>
+                            
+                            <Slider
+                              className="w-32"
+                              value={[isMuted ? 0 : volume * 100]}
+                              min={0}
+                              max={100}
+                              step={1}
+                              onValueChange={(value) => {
+                                const newVolume = value[0] / 100;
+                                setVolume(newVolume);
+                                setIsMuted(newVolume === 0);
+                                if (audioRef.current) {
+                                  audioRef.current.volume = newVolume;
+                                }
+                              }}
+                            />
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <BarChart3 className="h-5 w-5 text-gray-400" />
+                            <span className="text-sm text-gray-400">
+                              Audio Visualization
+                            </span>
+                          </div>
+                          
+                          <div className="flex ml-auto space-x-2">
+                            <Badge variant={isAudioConnected ? "default" : "outline"} className={isAudioConnected ? "bg-green-600" : "bg-transparent"}>
+                              {isAudioConnected ? "Audio Connected" : "No Audio"}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {/* Audio visualizer */}
+                        <div className="bg-dark-100 rounded-md overflow-hidden aspect-[4/1]">
+                          <canvas
+                            ref={canvasRef}
+                            className="w-full h-full"
+                            width={600}
+                            height={150}
+                          />
+                        </div>
+                        
+                        {/* Hidden audio element */}
+                        <audio
+                          ref={audioRef}
+                          className="hidden"
+                          autoPlay
+                          muted={isMuted}
+                        />
                       </div>
                     </>
                   )}

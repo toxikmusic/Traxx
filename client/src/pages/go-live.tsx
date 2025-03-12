@@ -130,6 +130,114 @@ export default function GoLivePage() {
     }
   });
 
+  // Draw audio visualization on canvas
+  useEffect(() => {
+    if (!canvasRef.current || !frequencyData) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Set visualization style
+    const barWidth = canvas.width / frequencyData.length;
+    const barGap = 2;
+    const barWidthWithGap = barWidth - barGap;
+    
+    // Create gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#9333ea'); // Purple from theme
+    gradient.addColorStop(0.5, '#a855f7');
+    gradient.addColorStop(1, '#c084fc');
+    
+    // Draw bars
+    ctx.fillStyle = gradient;
+    
+    for (let i = 0; i < frequencyData.length; i++) {
+      // Normalize value to canvas height (frequencyData values are 0-255)
+      const barHeight = (frequencyData[i] / 255) * canvas.height;
+      const x = i * barWidth;
+      const y = canvas.height - barHeight;
+      
+      // Draw rounded bars
+      ctx.beginPath();
+      ctx.roundRect(x, y, barWidthWithGap, barHeight, 4);
+      ctx.fill();
+    }
+  }, [frequencyData]);
+  
+  // Handle volume change
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+    audioStreamingService.setVolume(newVolume);
+  };
+  
+  // Toggle mute
+  const toggleMute = () => {
+    if (isMuted) {
+      audioStreamingService.setVolume(volume);
+    } else {
+      audioStreamingService.setVolume(0);
+    }
+    setIsMuted(!isMuted);
+  };
+  
+  // Start streaming function
+  const startStreaming = async (streamId: number) => {
+    if (!audioInitialized) {
+      toast({
+        title: "Audio not initialized",
+        description: "Please check your microphone permissions.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Generate a new stream key for demo
+      const newStreamKey = Math.random().toString(36).substring(2, 15);
+      setStreamKey(newStreamKey);
+      
+      const result = await audioStreamingService.startStreaming(streamId, newStreamKey);
+      
+      if (result) {
+        setIsStreaming(true);
+        setActiveStreamId(streamId);
+        toast({
+          title: "Stream started",
+          description: "Your audio is now streaming live.",
+        });
+      } else {
+        toast({
+          title: "Streaming failed",
+          description: "Could not start audio streaming. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error starting stream:", error);
+      toast({
+        title: "Streaming error",
+        description: "An error occurred while starting the stream.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Stop streaming function
+  const stopStreaming = () => {
+    audioStreamingService.stopStreaming();
+    setIsStreaming(false);
+    setActiveStreamId(null);
+    toast({
+      title: "Stream ended",
+      description: "Your live stream has ended successfully.",
+    });
+  };
+
   // Stream creation mutation
   const createStreamMutation = useMutation({
     mutationFn: (data: StreamFormValues) => {
@@ -151,14 +259,20 @@ export default function GoLivePage() {
       
       return createStream(streamData);
     },
-    onSuccess: () => {
+    onSuccess: (stream) => {
       queryClient.invalidateQueries({ queryKey: ['/api/streams/featured'] });
       toast({
         title: 'Stream created!',
-        description: 'Your live stream has started successfully.',
+        description: 'Your live stream has been created. You can now go live.',
       });
-      // Generate a random stream key for demonstration
-      setStreamKey(Math.random().toString(36).substring(2, 15));
+      
+      // Start streaming with the newly created stream ID
+      startStreaming(stream.id);
+      
+      // Navigate to the stream page after a brief delay
+      setTimeout(() => {
+        navigate(`/stream/${stream.id}`);
+      }, 2000);
     },
     onError: (error) => {
       toast({
@@ -314,23 +428,98 @@ export default function GoLivePage() {
               <div className="md:col-span-2 space-y-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Stream Preview</CardTitle>
-                    <CardDescription>Check your camera and audio</CardDescription>
+                    <CardTitle>Audio Preview</CardTitle>
+                    <CardDescription>Check your audio levels and visualization</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="aspect-video bg-black rounded-md flex flex-col items-center justify-center">
-                      <Camera className="h-12 w-12 text-white/30 mb-2" />
-                      <p className="text-white/70 text-sm">Your camera preview will appear here</p>
+                    <div className="aspect-video bg-black rounded-md flex flex-col items-center justify-center relative">
+                      {audioInitialized ? (
+                        <>
+                          <canvas
+                            ref={canvasRef}
+                            width={500}
+                            height={200}
+                            className="w-full h-full absolute inset-0"
+                          />
+                          {!frequencyData && (
+                            <div className="absolute inset-0 flex items-center justify-center flex-col">
+                              <BarChart3 className="h-12 w-12 text-white/30 mb-2" />
+                              <p className="text-white/70 text-sm">Speak or play audio to see visualization</p>
+                            </div>
+                          )}
+                          
+                          {/* Stream Status Indicators */}
+                          <div className="absolute top-4 right-4 flex gap-2">
+                            {isStreaming && (
+                              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                                <span className="w-2 h-2 bg-white rounded-full mr-1 animate-pulse"></span>
+                                LIVE
+                              </span>
+                            )}
+                            {streamStatus.viewerCount > 0 && (
+                              <span className="bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                                <span className="mr-1">👁️</span> {streamStatus.viewerCount}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-12 w-12 text-white/30 mb-2" />
+                          <p className="text-white/70 text-sm">Initializing microphone...</p>
+                        </>
+                      )}
                     </div>
-                    <div className="mt-4 flex justify-between">
-                      <Button variant="outline" size="sm">
-                        <Mic className="h-4 w-4 mr-2" />
-                        Test Audio
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Camera className="h-4 w-4 mr-2" />
-                        Switch Camera
-                      </Button>
+                    
+                    {/* Audio Controls */}
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={toggleMute}
+                          className="h-8 w-8"
+                        >
+                          {isMuted ? (
+                            <VolumeX className="h-4 w-4" />
+                          ) : (
+                            <Volume2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Slider
+                          value={[volume]}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onValueChange={handleVolumeChange}
+                          disabled={!audioInitialized}
+                          className="flex-1"
+                        />
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {isStreaming ? (
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={stopStreaming}
+                            className="flex-1"
+                          >
+                            Stop Streaming
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => activeStreamId && startStreaming(activeStreamId)}
+                            disabled={!audioInitialized || !activeStreamId}
+                            className="flex-1"
+                          >
+                            <Mic className="h-4 w-4 mr-2" />
+                            Test Audio
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
