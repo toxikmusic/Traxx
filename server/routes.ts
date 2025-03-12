@@ -861,13 +861,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Cloudflare API test endpoint - protected route
-  app.get("/api/admin/test-cloudflare", async (req, res) => {
+  // Test Cloudflare API endpoint with enhanced security for production
+  app.get("/api/admin/test-cloudflare", blockTestRoutesInProduction, async (req, res) => {
     // Ensure user is authenticated
     if (!req.isAuthenticated()) {
       return res.status(401).json({ 
         success: false, 
         message: "Authentication required"
       });
+    }
+    
+    // In production, require additional admin role check
+    if (isProduction()) {
+      // For this demo app, we're simply checking for a specific user ID that we consider an admin
+      // In a real application, you would have a proper role-based access control system
+      const isAdmin = req.user?.id === 1; // User ID 1 is considered admin in our test data
+      
+      if (!isAdmin) {
+        console.warn(`[SECURITY] Non-admin user ${req.user?.id} attempted to access admin endpoint`);
+        return res.status(403).json({
+          success: false,
+          message: "Admin access required for this endpoint"
+        });
+      }
     }
     
     try {
@@ -881,28 +897,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Simple test request to Cloudflare API
-      const response = await axios({
-        method: 'GET',
-        url: 'https://api.cloudflare.com/client/v4/user/tokens/verify',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Add request timeout for security
+      const cancelTokenSource = axios.CancelToken.source();
+      const timeout = setTimeout(() => {
+        cancelTokenSource.cancel('Request timeout');
+      }, 5000); // 5 second timeout
       
-      return res.status(200).json({
-        success: true,
-        message: "Cloudflare API key is valid",
-        details: response.data
-      });
+      try {
+        // Simple test request to Cloudflare API
+        const response = await axios({
+          method: 'GET',
+          url: 'https://api.cloudflare.com/client/v4/user/tokens/verify',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          cancelToken: cancelTokenSource.token
+        });
+        
+        // Clear the timeout
+        clearTimeout(timeout);
+        
+        // Log successful verification without exposing sensitive data
+        console.log(`Cloudflare API key verified successfully for user ${req.user?.id}`);
+        
+        // In production, don't expose API details in response
+        const responseData = isProduction() 
+          ? { success: true, message: "Cloudflare API key is valid" }
+          : { 
+              success: true, 
+              message: "Cloudflare API key is valid",
+              details: response.data
+            };
+            
+        return res.status(200).json(responseData);
+      } finally {
+        clearTimeout(timeout);
+      }
     } catch (error: any) {
       console.error("Cloudflare API test failed:", error);
+      
+      // Sanitize error messages in production
+      const errorMessage = isProduction()
+        ? "Failed to verify Cloudflare API key"
+        : error.response?.data?.message || error.message || "Unknown error";
       
       return res.status(500).json({
         success: false,
         message: "Failed to verify Cloudflare API key",
-        error: error.response?.data || (error instanceof Error ? error.message : String(error))
+        ...(isProduction() ? {} : { 
+          error: errorMessage,
+          details: error.response?.data
+        })
       });
     }
   });
