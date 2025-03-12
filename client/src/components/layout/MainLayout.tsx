@@ -26,19 +26,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {user && (
         <div className="fixed bottom-24 right-6 flex flex-col gap-4 md:bottom-8">
           <Link href="/go-live">
-            <Button size="icon" className="rounded-full bg-red-500 hover:bg-red-600 shadow-lg h-14 w-14">
+            <Button size="icon" className="rounded-full bg-red-500 hover:bg-red-600 shadow-lg h-14 w-14" title="Go Live">
               <Radio className="h-6 w-6" />
             </Button>
           </Link>
           
           <Link href="/upload-track">
-            <Button size="icon" className="rounded-full bg-primary hover:bg-primary/90 shadow-lg h-14 w-14">
+            <Button size="icon" className="rounded-full bg-primary hover:bg-primary/90 shadow-lg h-14 w-14" title="Upload Track">
               <Upload className="h-6 w-6" />
             </Button>
           </Link>
           
           <Link href="/posts/new">
-            <Button size="icon" className="rounded-full bg-primary hover:bg-primary/90 shadow-lg h-14 w-14">
+            <Button size="icon" className="rounded-full bg-primary hover:bg-primary/90 shadow-lg h-14 w-14" title="Create Post">
               <Plus className="h-6 w-6" />
             </Button>
           </Link>

@@ -12,6 +12,7 @@ import Stream from "@/pages/stream";
 import Streams from "@/pages/streams";
 import Profile from "@/pages/profile";
 import Posts from "@/pages/posts";
+import CreatePost from "@/pages/create-post";
 import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 import Discover from "@/pages/discover";
@@ -29,6 +30,7 @@ function Router() {
       <ProtectedRoute path="/stream/:id" component={Stream} />
       <ProtectedRoute path="/profile/:username" component={Profile} />
       <ProtectedRoute path="/posts" component={Posts} />
+      <ProtectedRoute path="/posts/new" component={CreatePost} />
       <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/discover" component={Discover} />
       <ProtectedRoute path="/library" component={Library} />
