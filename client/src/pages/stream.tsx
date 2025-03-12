@@ -46,7 +46,8 @@ export default function StreamPage() {
   const [streamStatus, setStreamStatus] = useState<StreamStatus>({ 
     isLive: false, 
     viewerCount: 0, 
-    peakViewerCount: 0 
+    peakViewerCount: 0,
+    audioLevel: -60 // Initial level (silent)
   });
   const socketRef = useRef<WebSocket | null>(null);
   
@@ -590,6 +591,34 @@ export default function StreamPage() {
                       
                       {/* Audio controls and visualizer */}
                       <div className="mt-4 space-y-3">
+                        {/* Audio Level Meter */}
+                        {streamStatus.audioLevel !== undefined && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs min-w-[50px] text-gray-400">
+                              {Math.round(streamStatus.audioLevel)} dB
+                            </span>
+                            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-100 ${
+                                  // Color changes based on level:
+                                  // Green for good levels (-30 to -12dB)
+                                  // Yellow for high levels (-12 to -6dB)
+                                  // Red for too high (above -6dB)
+                                  streamStatus.audioLevel > -12 
+                                    ? streamStatus.audioLevel > -6 
+                                      ? "bg-red-500" 
+                                      : "bg-yellow-500"
+                                    : "bg-emerald-500"
+                                }`}
+                                style={{ 
+                                  // Convert dB to percentage width (from -60dB to 0dB)
+                                  width: `${Math.min(100, Math.max(0, ((streamStatus.audioLevel + 60) / 60) * 100))}%` 
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center">
                             <Button 
