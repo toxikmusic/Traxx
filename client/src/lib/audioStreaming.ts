@@ -40,7 +40,8 @@ export class AudioStreamingService {
   private streamStatus: StreamStatus = {
     isLive: false,
     viewerCount: 0,
-    peakViewerCount: 0
+    peakViewerCount: 0,
+    audioLevel: -60 // Initial level (silent)
   };
   private audioProcessorNode: AudioWorkletNode | null = null;
   private frequencyData: Uint8Array | null = null;
@@ -145,13 +146,15 @@ export class AudioStreamingService {
           this.startAudioProcessing();
           
           // Update stream status
+          const currentLevel = this.streamStatus.audioLevel || -60;
           this.streamStatus = {
             ...this.streamStatus,
             isLive: true,
             streamId,
             startTime: new Date(),
             viewerCount: 0,
-            peakViewerCount: 0
+            peakViewerCount: 0,
+            audioLevel: currentLevel
           };
           
           this.notifyStatusChange();
@@ -361,11 +364,25 @@ export class AudioStreamingService {
       // Connect gain node to processor
       this.gainNode.connect(this.audioProcessorNode);
       
-      // Handle processed audio data
+      // Handle processed audio data and level messages
       this.audioProcessorNode.port.onmessage = (event) => {
-        // Send audio chunks to the WebSocket
+        if (!event.data) return;
+        
+        // Check if it's a level message
+        if (typeof event.data === 'object' && event.data.type === 'level') {
+          // Update audio level in stream status
+          this.streamStatus.audioLevel = event.data.level;
+          this.notifyStatusChange();
+          return;
+        }
+        
+        // Otherwise it's audio data to send
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-          this.socket.send(event.data);
+          try {
+            this.socket.send(event.data);
+          } catch (error) {
+            console.error("Error sending audio data:", error);
+          }
         }
       };
       
