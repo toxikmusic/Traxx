@@ -127,15 +127,50 @@ export default function CreatePostPage() {
         postType
       });
       
-      // Create the post with the image URL if available
-      await createPostMutation.mutateAsync({
+      // Build a properly formatted post object
+      const postData: {
+        userId: number;
+        title: string;
+        content: string;
+        postType: typeof PostType[keyof typeof PostType];
+        tags: string[];
+        imageUrl?: string | null;
+      } = {
         userId: user.id,
         title: values.title,
         content: values.content,
-        imageUrl: imageUrl,
-        tags: tagsArray,
         postType: postType,
+        tags: tagsArray
+      };
+      
+      // Only add imageUrl if it exists
+      if (imageUrl) {
+        postData.imageUrl = imageUrl;
+      }
+      
+      console.log("Final post data being sent to server:", postData);
+      
+      // Create the post with the image URL if available
+      await createPostMutation.mutateAsync(postData);
+      
+      // Show success toast
+      toast({
+        title: "Post created successfully!",
+        description: "Your post has been published.",
+        variant: "default",
       });
+      
+      // Reset the form
+      form.reset({
+        title: "",
+        content: "",
+        tags: "",
+        postType: PostType.TEXT,
+        imageFile: undefined,
+      });
+      
+      // Clear the image preview
+      setImagePreview(null);
       
     } catch (error) {
       console.error("Error in post creation process:", error);
@@ -312,7 +347,7 @@ export default function CreatePostPage() {
               
               {form.watch("tags") && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {form.watch("tags").split(',').map((tag, i) => (
+                  {form.watch("tags")?.split(',').map((tag, i) => (
                     tag.trim() && (
                       <span 
                         key={i} 
