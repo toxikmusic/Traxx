@@ -25,10 +25,21 @@ export async function getPostsByUser(userId: number): Promise<Post[]> {
 }
 
 export async function createPost(data: any): Promise<Post> {
-  return await apiRequest<Post>("/api/posts", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+  try {
+    console.log("API: Sending post data:", data);
+    const response = await apiRequest<Post>("/api/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data),
+    });
+    console.log("API: Post creation successful:", response);
+    return response;
+  } catch (error) {
+    console.error("API: Post creation failed:", error);
+    throw error;
+  }
 }
 
 // User Settings

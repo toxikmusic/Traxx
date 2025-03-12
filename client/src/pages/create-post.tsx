@@ -174,10 +174,22 @@ export default function CreatePostPage() {
       
     } catch (error) {
       console.error("Error in post creation process:", error);
+      
+      // Enhanced error logging for debugging
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      } else {
+        console.error("Unknown error type:", typeof error);
+        console.error("Error serialized:", JSON.stringify(error));
+      }
+      
       // Show error details in the UI
       toast({
         title: "Failed to create post",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        description: error instanceof Error && error.message 
+          ? error.message 
+          : "Server error - please try again later",
         variant: "destructive",
       });
     }
