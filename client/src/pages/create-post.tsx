@@ -111,13 +111,21 @@ export default function CreatePostPage() {
         imageUrl = imageResult.url;
       }
       
-      // Process tags
+      // Process tags - ensure we have a valid array for the server
       const tagsArray = values.tags 
         ? values.tags.split(',').map(tag => tag.trim()).filter(tag => tag) 
         : [];
       
-      // Determine post type based on image presence
-      const postType = imageUrl ? PostType.IMAGE : PostType.TEXT;
+      // Determine post type based on image presence and selected value in form
+      const postType = imageUrl ? PostType.IMAGE : values.postType;
+      
+      console.log("Submitting post with data:", {
+        title: values.title,
+        content: values.content,
+        imageUrl,
+        tags: tagsArray,
+        postType
+      });
       
       // Create the post with the image URL if available
       await createPostMutation.mutateAsync({

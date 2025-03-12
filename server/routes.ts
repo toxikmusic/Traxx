@@ -698,8 +698,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Ensure postType is a valid enum value
       if (postData.postType !== PostType.TEXT && postData.postType !== PostType.IMAGE) {
-        return res.status(400).json({ message: `Invalid post type. Must be '${PostType.TEXT}' or '${PostType.IMAGE}'` });
+        // Default to TEXT if missing or invalid
+        postData.postType = PostType.TEXT;
       }
+      
+      // Ensure tags is properly handled as an array
+      if (postData.tags && !Array.isArray(postData.tags)) {
+        try {
+          // If it's a JSON string, parse it
+          if (typeof postData.tags === 'string') {
+            postData.tags = JSON.parse(postData.tags);
+          }
+        } catch (e) {
+          // If parsing fails, convert to empty array
+          postData.tags = [];
+        }
+      }
+      
+      console.log("Processing post with data:", JSON.stringify(postData));
       
       const validatedData = insertPostSchema.parse(postData);
       const post = await storage.createPost(validatedData);
