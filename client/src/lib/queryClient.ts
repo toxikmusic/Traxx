@@ -40,41 +40,52 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest<T>(
-  url: string,
+  method: string,
+  endpoint: string,
+  body?: any,
   options?: RequestInit,
 ): Promise<T> {
-  // Create safe fetch options
+  const url = endpoint.startsWith('http') ? endpoint : endpoint;
+  
+  // Build base options
   const fetchOptions: RequestInit = {
-    method: options?.method || 'GET',
+    method,
     credentials: "include", // Always include credentials for cookie-based auth
-    ...options,
+    headers: {
+      "Accept": "application/json",
+      "Cache-Control": "no-cache"
+    },
+    ...options
   };
-
-  // Handle Content-Type header for non-FormData bodies
-  if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
-    // Use Record type to avoid TypeScript issues with headers
-    const headers: Record<string, string> = {};
-    
-    // Copy existing headers if present
-    if (fetchOptions.headers) {
-      const existingHeaders = fetchOptions.headers as Record<string, string>;
-      Object.keys(existingHeaders).forEach(key => {
-        headers[key] = existingHeaders[key];
-      });
+  
+  // Handle request body
+  if (body) {
+    if (body instanceof FormData) {
+      // Let the browser set the content type for FormData (includes boundary)
+      fetchOptions.body = body;
+    } else {
+      // For JSON requests
+      fetchOptions.headers = {
+        ...fetchOptions.headers as Record<string, string>,
+        "Content-Type": "application/json"
+      };
+      fetchOptions.body = JSON.stringify(body);
     }
-    
-    // Add Content-Type header
-    headers["Content-Type"] = "application/json";
-    
-    fetchOptions.headers = headers;
   }
   
-  // Make sure credentials isn't overridden
+  // Ensure credentials aren't overridden
   fetchOptions.credentials = "include";
+  
+  console.log(`API ${method} request to ${url}`, { 
+    method,
+    credentials: fetchOptions.credentials,
+    headers: fetchOptions.headers
+  });
   
   const res = await fetch(url, fetchOptions);
 
-  console.log(`API ${fetchOptions.method} request to ${url}, status: ${res.status}`);
+  console.log(`API ${method} request to ${url}, status: ${res.status}`);
+  console.log(`Response headers:`, Object.fromEntries(res.headers.entries()));
   
   await throwIfResNotOk(res);
   return await res.json();

@@ -35,8 +35,10 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      secure: false,  // Set to false to work in development
+      httpOnly: true, // Prevents client-side JS from reading the cookie
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      sameSite: 'lax' // Allows cookies to be sent in top-level navigations
     }
   };
 
@@ -117,12 +119,34 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    console.log("Login attempt with username:", req.body.username);
+    
     passport.authenticate("local", (err: Error | null, user: SelectUser | false, info: { message: string }) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ error: "Invalid credentials" });
+      if (err) {
+        console.error("Login error:", err);
+        return next(err);
+      }
+      
+      if (!user) {
+        console.log("Login failed: Invalid credentials");
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      console.log("Authentication successful for user:", user.id);
       
       req.login(user, (err: Error | null) => {
-        if (err) return next(err);
+        if (err) {
+          console.error("Session creation error:", err);
+          return next(err);
+        }
+        
+        // Log session information
+        console.log("Session established:", {
+          id: req.sessionID,
+          cookie: req.session.cookie,
+          user: user.id
+        });
+        
         // Send user without password
         const { password, ...userWithoutPassword } = user;
         res.status(200).json(userWithoutPassword);
@@ -146,7 +170,19 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    console.log("GET /api/user session:", {
+      id: req.sessionID,
+      authenticated: req.isAuthenticated(),
+      user: req.user ? (req.user as SelectUser).id : 'none'
+    });
+    
+    if (!req.isAuthenticated()) {
+      console.log("GET /api/user - Not authenticated");
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    console.log("GET /api/user - Authenticated user:", (req.user as SelectUser).id);
+    
     // Send user without password
     const { password, ...userWithoutPassword } = req.user as SelectUser;
     res.json(userWithoutPassword);

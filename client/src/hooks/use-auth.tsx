@@ -45,10 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: LoginData) => {
       console.log("Attempting login for user:", credentials.username);
       try {
-        const response = await apiRequest<Omit<SelectUser, "password">>("/api/login", {
-          method: "POST",
-          body: JSON.stringify(credentials)
-        });
+        const response = await apiRequest<Omit<SelectUser, "password">>(
+          "POST",
+          "/api/login", 
+          credentials
+        );
         console.log("Login successful, received user data:", response);
         return response;
       } catch (error) {
@@ -83,10 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (credentials: InsertUser) => {
       console.log("Attempting to register new user:", credentials.username);
       try {
-        const response = await apiRequest<Omit<SelectUser, "password">>("/api/register", {
-          method: "POST",
-          body: JSON.stringify(credentials)
-        });
+        const response = await apiRequest<Omit<SelectUser, "password">>(
+          "POST",
+          "/api/register", 
+          credentials
+        );
         console.log("Registration successful, received user data:", response);
         return response;
       } catch (error) {
