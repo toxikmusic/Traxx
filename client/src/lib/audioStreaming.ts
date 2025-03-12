@@ -466,6 +466,22 @@ export class AudioStreamingService {
     this.onStatusChangeCallbacks.forEach(callback => {
       callback(status);
     });
+    
+    // Send audio level update to the server if we're streaming as broadcaster
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && 
+        this.streamStatus.isLive && this.streamStatus.streamId && 
+        this.streamStatus.audioLevel !== undefined) {
+      try {
+        // Send as a control message (string) instead of binary audio data
+        this.socket.send(JSON.stringify({
+          type: 'audio_level',
+          level: this.streamStatus.audioLevel,
+          streamId: this.streamStatus.streamId
+        }));
+      } catch (error) {
+        console.error('Error sending audio level to server:', error);
+      }
+    }
   }
 }
 

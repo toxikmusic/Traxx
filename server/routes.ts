@@ -984,7 +984,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
     
-    const streamConnections = audioStreamConnections.get(streamId)!;
+    const audioConnections = audioStreamConnections.get(streamId)!;
     
     // Set up connection based on role
     if (isBroadcaster) {
@@ -1008,7 +1008,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if this is a control message (string) or audio data (binary)
         if (typeof data === 'string') {
           try {
-            const controlMessage = JSON.parse(data.toString());
+            const controlMessage = JSON.parse(data);
             
             // Handle audio level updates
             if (controlMessage.type === 'audio_level' && typeof controlMessage.level === 'number') {
@@ -1028,9 +1028,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               
               // Also broadcast to chat clients for display in UI
-              const chatConnections = streamConnections.get(streamId);
-              if (chatConnections) {
-                chatConnections.forEach(client => {
+              // Get chat clients from the separate chat WebSocket map (not the audio streamConnections)
+              const chatClients = streamConnections.get(streamId); // This is the chat WebSocket connections
+              if (chatClients) {
+                // Update all connected chat clients with the audio level
+                chatClients.forEach((client: WebSocket) => {
                   if (client.readyState === WebSocket.OPEN) {
                     try {
                       client.send(JSON.stringify({
