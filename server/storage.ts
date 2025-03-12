@@ -6,6 +6,8 @@ import {
   follows,
   userSettings,
   posts,
+  likes,
+  comments,
   type User,
   type InsertUser,
   type Stream,
@@ -19,7 +21,11 @@ import {
   type UserSettings,
   type InsertUserSettings,
   type Post,
-  type InsertPost
+  type InsertPost,
+  type Like,
+  type InsertLike,
+  type Comment,
+  type InsertComment
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";

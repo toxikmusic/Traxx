@@ -77,7 +77,7 @@ export default function LikeButton({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to like content');
       
-      const res = await apiRequest('POST', '/api/likes', {
+      const res = await apiRequest('POST', '/api/likes', null, {
         userId: user.id,
         contentId,
         contentType
@@ -103,7 +103,7 @@ export default function LikeButton({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to unlike content');
       
-      const res = await apiRequest('DELETE', '/api/likes', {
+      const res = await apiRequest('DELETE', '/api/likes', null, {
         userId: user.id,
         contentId,
         contentType
