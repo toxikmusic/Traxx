@@ -7,6 +7,7 @@ import {
   FormLabel, 
   FormMessage 
 } from "@/components/ui/form";
+import { PostType } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ const postFormSchema = z.object({
   content: z.string().min(1, "Content is required"),
   imageFile: z.instanceof(File).optional(),
   tags: z.string().optional(),
-  postType: z.string().default("text"),
+  postType: z.string().default(PostType.TEXT),
 });
 
 type FormValues = z.infer<typeof postFormSchema>;
@@ -130,6 +131,12 @@ export default function CreatePostPage() {
       
     } catch (error) {
       console.error("Error in post creation process:", error);
+      // Show error details in the UI
+      toast({
+        title: "Failed to create post",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
     }
   };
   
