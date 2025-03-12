@@ -473,6 +473,36 @@ export default function GoLivePage() {
                     
                     {/* Audio Controls */}
                     <div className="mt-4 space-y-3">
+                      {/* Audio Level Meter */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs w-12 text-muted-foreground">
+                          {streamStatus.audioLevel ? 
+                            `${Math.round(streamStatus.audioLevel)} dB` : 
+                            "-∞ dB"}
+                        </span>
+                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all duration-100 ${
+                              // Color changes based on level:
+                              // Green for good levels (-30 to -12dB)
+                              // Yellow for high levels (-12 to -6dB)
+                              // Red for too high (above -6dB)
+                              streamStatus.audioLevel && streamStatus.audioLevel > -12 
+                                ? streamStatus.audioLevel > -6 
+                                  ? "bg-red-500" 
+                                  : "bg-yellow-500"
+                                : "bg-emerald-500"
+                            }`}
+                            style={{ 
+                              // Convert dB to percentage width (from -60dB to 0dB)
+                              width: `${streamStatus.audioLevel 
+                                ? Math.min(100, Math.max(0, ((streamStatus.audioLevel + 60) / 60) * 100)) 
+                                : 0}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    
                       <div className="flex items-center gap-2">
                         <Button 
                           variant="outline" 

@@ -88,9 +88,12 @@ class AudioProcessor extends AudioWorkletProcessor {
     
     // Report levels to main thread occasionally (every 100ms)
     if (currentTime && (currentTime - this.lastReportTime > 0.1)) {
+      // Calculate level in dB, with a floor of -60dB
+      const dbLevel = Math.max(-60, this.linearToDb(this.currentLevel));
+      
       this.port.postMessage({
         type: 'level',
-        level: this.linearToDb(this.currentLevel)
+        level: dbLevel
       });
       this.lastReportTime = currentTime;
     }
