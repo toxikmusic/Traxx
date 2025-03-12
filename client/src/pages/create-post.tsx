@@ -55,27 +55,15 @@ export default function CreatePostPage() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("image", file);
-      const res = await fetch("/api/upload/image", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        throw new Error("Failed to upload image");
-      }
-      return await res.json();
+      return await apiRequest("POST", "/api/upload/image", formData);
     },
   });
 
   // Post creation mutation
   const createPostMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("/api/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      });
+      console.log("Creating post with data:", data);
+      return await apiRequest("POST", "/api/posts", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/posts/recent'] });

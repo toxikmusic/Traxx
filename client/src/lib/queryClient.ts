@@ -40,22 +40,50 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest<T>(
-  method: string,
-  endpoint: string,
-  body?: any,
+  methodOrUrl: string,
+  endpointOrBody?: string | any,
+  bodyOrOptions?: any,
   options?: RequestInit,
 ): Promise<T> {
-  const url = endpoint.startsWith('http') ? endpoint : endpoint;
+  // Handle different function signatures:
   
-  // Build base options
-  const fetchOptions: RequestInit = {
+  let method: string;
+  let url: string;
+  let body: any;
+  let fetchOptions: RequestInit = {};
+  
+  // Check parameter types to determine which signature is being used
+  if (endpointOrBody && typeof methodOrUrl === 'string' && typeof endpointOrBody === 'string') {
+    // New signature: apiRequest(method, endpoint, body, options)
+    method = methodOrUrl;
+    url = endpointOrBody;
+    body = bodyOrOptions;
+    fetchOptions = options || {};
+  } else {
+    // Old signature: apiRequest(endpoint, options)
+    method = 'GET';
+    url = methodOrUrl;
+    fetchOptions = endpointOrBody as RequestInit || {};
+    body = undefined;
+    
+    if (fetchOptions.method) {
+      method = fetchOptions.method;
+    }
+    
+    if (fetchOptions.body) {
+      body = fetchOptions.body;
+    }
+  }
+  
+  // Final fetch options
+  fetchOptions = {
     method,
     credentials: "include", // Always include credentials for cookie-based auth
     headers: {
       "Accept": "application/json",
       "Cache-Control": "no-cache"
     },
-    ...options
+    ...fetchOptions
   };
   
   // Handle request body
