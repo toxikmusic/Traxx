@@ -58,11 +58,38 @@ export default function GoLivePage() {
   const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [activeStreamId, setActiveStreamId] = useState<number | null>(null);
+  const [cloudflareApiVerified, setCloudflareApiVerified] = useState<boolean | null>(null);
+  const [cloudflareApiMessage, setCloudflareApiMessage] = useState<string>("");
   
   // For demo, a fixed userId (in real app would come from auth)
   const userId = user?.id || 1;
   
   // Initialize audio streaming and Cloudflare streaming service when component mounts
+  // Check Cloudflare API credentials
+  useEffect(() => {
+    const verifyCloudflareCredentials = async () => {
+      if (user) {
+        try {
+          const result = await cloudflareStreamingService.verifyCredentials();
+          setCloudflareApiVerified(result.success);
+          setCloudflareApiMessage(result.message);
+          
+          if (!result.success) {
+            console.warn("Cloudflare API credentials verification failed:", result.message);
+          } else {
+            console.log("Cloudflare API credentials verified successfully");
+          }
+        } catch (error) {
+          console.error("Error verifying Cloudflare credentials:", error);
+          setCloudflareApiVerified(false);
+          setCloudflareApiMessage("Failed to verify Cloudflare API credentials");
+        }
+      }
+    };
+    
+    verifyCloudflareCredentials();
+  }, [user]);
+
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -649,6 +676,37 @@ export default function GoLivePage() {
                       </div>
                     </div>
                     
+                    {/* Cloudflare API Status Alert */}
+                    {cloudflareApiVerified !== null && (
+                      <Alert className={`mb-4 ${cloudflareApiVerified ? 'bg-green-50 dark:bg-green-950 text-green-900 dark:text-green-200' : 'bg-red-50 dark:bg-red-950 text-red-900 dark:text-red-200'}`}>
+                        <AlertCircle className={`h-4 w-4 ${cloudflareApiVerified ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                        <AlertTitle>{cloudflareApiVerified ? 'Cloudflare API Connected' : 'Cloudflare API Error'}</AlertTitle>
+                        <AlertDescription>
+                          {cloudflareApiMessage || (cloudflareApiVerified 
+                            ? 'Cloudflare streaming API connection verified successfully.'
+                            : 'Unable to verify Cloudflare API key. Streaming features may be limited.')}
+                          
+                          {!cloudflareApiVerified && (
+                            <div className="mt-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  // We'll need to have the user set up the Cloudflare API key
+                                  toast({
+                                    title: "API Key Required",
+                                    description: "Please contact your administrator to set up the Cloudflare API key.",
+                                  });
+                                }}
+                              >
+                                Configure Cloudflare API Key
+                              </Button>
+                            </div>
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Important</AlertTitle>

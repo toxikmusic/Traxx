@@ -818,13 +818,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(creators);
   });
   
-  // Cloudflare API test endpoint - protected admin route
+  // Cloudflare API test endpoint - protected route
   app.get("/api/admin/test-cloudflare", async (req, res) => {
-    // Ensure user is authenticated and has admin privileges
-    if (!req.isAuthenticated() || req.user.role !== 'admin') {
-      return res.status(403).json({ 
+    // Ensure user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ 
         success: false, 
-        message: "Admin access required"
+        message: "Authentication required"
       });
     }
     
