@@ -87,19 +87,19 @@ export default function AudioPlayer() {
         preload="metadata"
       />
 
-      <div className="fixed bottom-0 left-0 w-full bg-dark-200 border-t border-dark-100 py-3 px-4 z-50">
+      <div className="fixed bottom-0 left-0 w-full bg-background border-t py-3 px-4 z-50">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center">
             {/* Track info */}
             <div className="flex items-center mr-4">
               <img 
-                src={currentTrack.coverUrl}
+                src={currentTrack.coverUrl || '/default-cover.jpg'}
                 alt={currentTrack.title} 
                 className="w-12 h-12 object-cover rounded mr-3 hidden sm:block"
               />
               <div>
                 <h4 className="font-medium text-sm">{currentTrack.title}</h4>
-                <p className="text-xs text-gray-400">{currentTrack.artistName}</p>
+                <p className="text-xs text-muted-foreground">{currentTrack.artistName}</p>
               </div>
             </div>
             

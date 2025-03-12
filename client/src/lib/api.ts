@@ -60,3 +60,8 @@ export async function getFeaturedStreams(): Promise<Stream[]> {
 export async function getStreamsByUser(userId: number): Promise<Stream[]> {
   return await apiRequest<Stream[]>(`/api/streams/user/${userId}`);
 }
+
+// Creators
+export async function getRecommendedCreators(): Promise<User[]> {
+  return await apiRequest<User[]>("/api/creators/recommended");
+}
