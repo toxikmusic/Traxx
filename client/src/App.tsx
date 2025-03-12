@@ -4,6 +4,8 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AudioPlayerProvider } from "@/context/AudioPlayerContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 import Home from "@/pages/home";
 import Stream from "@/pages/stream";
@@ -14,18 +16,20 @@ import NotFound from "@/pages/not-found";
 import Discover from "@/pages/discover";
 import Library from "@/pages/library";
 import GoLive from "@/pages/go-live";
+import AuthPage from "@/pages/auth-page";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/stream/:id" component={Stream} />
-      <Route path="/profile/:username" component={Profile} />
-      <Route path="/posts" component={Posts} />
-      <Route path="/settings" component={Settings} />
-      <Route path="/discover" component={Discover} />
-      <Route path="/library" component={Library} />
-      <Route path="/go-live" component={GoLive} />
+      <ProtectedRoute path="/" component={Home} />
+      <ProtectedRoute path="/stream/:id" component={Stream} />
+      <ProtectedRoute path="/profile/:username" component={Profile} />
+      <ProtectedRoute path="/posts" component={Posts} />
+      <ProtectedRoute path="/settings" component={Settings} />
+      <ProtectedRoute path="/discover" component={Discover} />
+      <ProtectedRoute path="/library" component={Library} />
+      <ProtectedRoute path="/go-live" component={GoLive} />
+      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -35,10 +39,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AudioPlayerProvider>
-          <Router />
-          <Toaster />
-        </AudioPlayerProvider>
+        <AuthProvider>
+          <AudioPlayerProvider>
+            <Router />
+            <Toaster />
+          </AudioPlayerProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

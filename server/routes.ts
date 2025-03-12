@@ -10,8 +10,12 @@ import {
   insertUserSettingsSchema,
   insertPostSchema 
 } from "@shared/schema";
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup auth routes with Passport
+  setupAuth(app);
+  
   // API routes
   
   // Users
