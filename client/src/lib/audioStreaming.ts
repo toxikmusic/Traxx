@@ -113,12 +113,23 @@ export class AudioStreamingService {
         this.socket = null;
       }
       
-      this.streamKey = streamKey;
+      // Extract just the stream key from potentially longer strings
+      // The key could be just the ID or a full URL with the key embedded
+      let cleanStreamKey = streamKey;
+      if (streamKey.includes('/')) {
+        // Extract just the last part after the last slash or the part before query params
+        const parts = streamKey.split('/');
+        const lastPart = parts[parts.length - 1];
+        cleanStreamKey = lastPart.split('?')[0];
+      }
+      
+      console.log(`Using stream key: ${cleanStreamKey}`);
+      this.streamKey = cleanStreamKey;
       
       // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       // Connect to our dedicated audio WebSocket with proper format
-      const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${streamKey}`;
+      const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${cleanStreamKey}`;
       
       console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
       this.socket = new WebSocket(wsUrl);
