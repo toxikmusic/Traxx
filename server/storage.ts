@@ -21,8 +21,15 @@ import {
   type Post,
   type InsertPost
 } from "@shared/schema";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
+  // Session store for authentication
+  sessionStore: session.Store;
+  
   // Users
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -82,6 +89,9 @@ export class MemStorage implements IStorage {
   private postId: number;
   private genreId: number;
   private followId: number;
+  
+  // Session store for authentication
+  public sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
@@ -99,6 +109,11 @@ export class MemStorage implements IStorage {
     this.postId = 1;
     this.genreId = 1;
     this.followId = 1;
+    
+    // Create memory session store
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     // Initialize with some seed data
     this.seedData();
