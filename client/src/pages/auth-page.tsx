@@ -70,7 +70,12 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate(data);
+    // Transform any null values to empty strings for optional fields
+    const cleanedData = Object.fromEntries(
+      Object.entries(data).map(([key, value]) => [key, value === null ? "" : value])
+    ) as RegisterFormValues;
+    
+    registerMutation.mutate(cleanedData);
   };
 
   return (
