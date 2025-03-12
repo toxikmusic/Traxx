@@ -34,7 +34,7 @@ export default function FollowButton({
       if (!user) return { isFollowing: false };
       
       try {
-        const res = await apiRequest('GET', `/api/follows/check?followerId=${user.id}&followedId=${userId}`);
+        const res = await apiRequest('GET', `/api/follows/check?followerId=${user.id}&followedId=${userId}`, null);
         return res.json();
       } catch (error) {
         return { isFollowing: false };
@@ -48,7 +48,7 @@ export default function FollowButton({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to follow users');
       
-      const res = await apiRequest('POST', '/api/follows', {
+      const res = await apiRequest('POST', '/api/follows', null, {
         followerId: user.id,
         followedId: userId
       });
@@ -76,7 +76,7 @@ export default function FollowButton({
       if (!user) throw new Error('You must be logged in to unfollow users');
       
       // Since our API uses a DELETE endpoint with URL parameter
-      const res = await apiRequest('DELETE', `/api/follows/${userId}`);
+      const res = await apiRequest('DELETE', `/api/follows/${userId}`, null);
       return res;
     },
     onSuccess: () => {

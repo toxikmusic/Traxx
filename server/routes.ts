@@ -259,12 +259,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/follows", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
     try {
-      const followData = insertFollowSchema.parse(req.body);
-      const follow = await storage.createFollow(followData);
+      // Use authenticated user ID
+      const followData = {
+        ...req.body,
+        followerId: req.user.id
+      };
+      
+      const validatedData = insertFollowSchema.parse(followData);
+      const follow = await storage.createFollow(validatedData);
       
       // Increment follower count
-      await storage.incrementFollowerCount(followData.followedId);
+      await storage.incrementFollowerCount(validatedData.followedId);
       
       res.status(201).json(follow);
     } catch (error) {
@@ -325,20 +335,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.delete("/api/follows/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     const followedId = parseInt(req.params.userId);
     if (isNaN(followedId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
     
-    // For simplicity, we'll just use a mock followerId 
-    const followerId = 999; // In a real app, this would be the current user's ID
+    // Get current user ID from auth
+    const followerId = req.user.id;
     
-    await storage.removeFollow(followerId, followedId);
-    
-    // Decrement follower count
-    await storage.decrementFollowerCount(followedId);
-    
-    res.status(204).send();
+    try {
+      await storage.removeFollow(followerId, followedId);
+      
+      // Decrement follower count
+      await storage.decrementFollowerCount(followedId);
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Error removing follow" });
+    }
   });
   
   // Likes endpoints
