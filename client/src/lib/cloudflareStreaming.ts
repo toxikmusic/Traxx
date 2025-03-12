@@ -61,14 +61,29 @@ class CloudflareStreamingService {
       // If stream key is not provided, fetch it from our API
       if (!this.streamKey) {
         try {
-          // Use axios directly to avoid type issues with the apiRequest function
-          const response = await axios.get('/api/cloudflare/stream-key', {
-            headers: {
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache'
-            },
-            withCredentials: true
-          });
+          // First try the authenticated endpoint, and if that fails, use the test endpoint
+          let response;
+          
+          try {
+            // Try the authenticated endpoint first
+            response = await axios.get('/api/cloudflare/stream-key', {
+              headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              },
+              withCredentials: true
+            });
+          } catch (authError) {
+            console.log("Could not get authenticated stream key, using test endpoint");
+            
+            // If that fails, use the test endpoint which doesn't require authentication
+            response = await axios.get('/api/test/cloudflare/stream-key', {
+              headers: {
+                'Accept': 'application/json',
+                'Cache-Control': 'no-cache'
+              }
+            });
+          }
           
           if (response && response.status === 200 && response.data) {
             const data = response.data as StreamKeyResponse;

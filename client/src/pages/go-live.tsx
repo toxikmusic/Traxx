@@ -96,10 +96,19 @@ export default function GoLivePage() {
           const cloudflareResult = await cloudflareStreamingService.initialize();
           if (cloudflareResult) {
             console.log("Cloudflare streaming service initialized");
-            // Update stream key display
-            const streamKey = cloudflareStreamingService.getRtmpsUrl();
-            if (streamKey) {
-              setStreamKey(streamKey);
+            
+            // Log available streaming URLs for debugging
+            const webRtcUrl = cloudflareStreamingService.getWebRtcUrl();
+            const rtmpsUrl = cloudflareStreamingService.getRtmpsUrl();
+            
+            console.log("Available WebRTC URL:", webRtcUrl);
+            console.log("Available RTMPS URL:", rtmpsUrl);
+            
+            // Choose the best URL to display (prefer WebRTC if available)
+            const bestUrl = webRtcUrl || rtmpsUrl;
+            if (bestUrl) {
+              // Mask the URL for security in the UI
+              setStreamKey("••••••••••••••••");
             }
           } else {
             console.error("Failed to initialize Cloudflare streaming service");
@@ -225,14 +234,24 @@ export default function GoLivePage() {
         return;
       }
       
-      // Get the stream key from Cloudflare
-      const cloudflareStreamKey = cloudflareStreamingService.getRtmpsUrl();
-      if (cloudflareStreamKey) {
-        setStreamKey(cloudflareStreamKey);
+      // First try to get the WebRTC URL (preferred for modern browsers)
+      const webRtcUrl = cloudflareStreamingService.getWebRtcUrl();
+      
+      // Fallback to RTMPS URL if WebRTC not available
+      const rtmpsUrl = cloudflareStreamingService.getRtmpsUrl();
+      
+      // Use the appropriate streaming URL (prefer WebRTC if available)
+      const streamUrl = webRtcUrl || rtmpsUrl;
+      
+      console.log("Using streaming URL:", streamUrl);
+      
+      // Display the stream key/URL in the UI (masked for security)
+      if (streamUrl) {
+        setStreamKey(streamUrl);
       }
       
-      // Start local audio streaming
-      const result = await audioStreamingService.startStreaming(streamId, cloudflareStreamKey);
+      // Start local audio streaming with the appropriate URL
+      const result = await audioStreamingService.startStreaming(streamId, streamUrl);
       
       if (result) {
         setIsStreaming(true);

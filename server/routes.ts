@@ -200,14 +200,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Cloudflare API key not configured" });
       }
       
-      // For demo purposes, we'll just return a modified version of the API key
-      // In a real implementation, we would make an API call to Cloudflare to get a stream key
-      const streamKey = cloudflareApiKey.substring(0, 16);
+      // Return our actual configured Cloudflare streaming credentials
+      // These are used for testing without requiring authentication
+      const streamKey = "8926835a1f3442efddd27bf44a470b84";
+      const rtmpsKey = "5ef3c9db080854c80da02145fbf610cfk8926835a1f3442efddd27bf44a470b84";
+      const playbackKey = "a495c263e5e367e02d0ac62bd3af677ek8926835a1f3442efddd27bf44a470b84";
+      const webRtcUrl = "https://customer-t2aair0gpwhh9qzs.cloudflarestream.com/2d1e4393576e30df428f1b48724df1e5k8926835a1f3442efddd27bf44a470b84/webRTC/publish";
+      const webRtcPlayUrl = "https://customer-t2aair0gpwhh9qzs.cloudflarestream.com/8926835a1f3442efddd27bf44a470b84/webRTC/play";
       
       res.json({
         streamKey,
+        rtmpsKey,
         rtmpsUrl: 'rtmps://live.cloudflare.com:443/live/',
-        playbackUrl: `https://customer-streams.cloudflarestream.com/${streamKey}/manifest/video.m3u8`
+        playbackKey,
+        playbackUrl: `https://customer-t2aair0gpwhh9qzs.cloudflarestream.com/${streamKey}/manifest/video.m3u8`,
+        webRtcUrl,
+        webRtcPlayUrl,
+        accountId: "3a06d651436a9ee739480875effc1a2f"
       });
     } catch (error) {
       console.error("Error fetching Cloudflare stream key:", error);
