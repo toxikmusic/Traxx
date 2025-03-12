@@ -15,6 +15,7 @@ type AuthContextType = {
   loginMutation: UseMutationResult<Omit<SelectUser, "password">, Error, LoginData>;
   logoutMutation: UseMutationResult<unknown, Error, void>;
   registerMutation: UseMutationResult<Omit<SelectUser, "password">, Error, InsertUser>;
+  refetchUser: () => Promise<any>;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
@@ -23,30 +24,52 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  
+  // Fetch current user with enhanced logging
   const {
     data: user,
     error,
     isLoading,
+    refetch: refetchUser
   } = useQuery<SelectUser | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    retry: 1, // Only retry once on failure
+    retryDelay: 1000, // Wait 1 second between retries
+    staleTime: 5 * 60 * 1000, // Consider data stale after 5 minutes
+    refetchOnWindowFocus: true // Refetch when window regains focus
   });
 
+  // Login mutation with improved error handling
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      return await apiRequest<Omit<SelectUser, "password">>("/api/login", {
-        method: "POST",
-        body: JSON.stringify(credentials)
-      });
+      console.log("Attempting login for user:", credentials.username);
+      try {
+        const response = await apiRequest<Omit<SelectUser, "password">>("/api/login", {
+          method: "POST",
+          body: JSON.stringify(credentials)
+        });
+        console.log("Login successful, received user data:", response);
+        return response;
+      } catch (error) {
+        console.error("Login failed:", error);
+        throw error;
+      }
     },
     onSuccess: (user: Omit<SelectUser, "password">) => {
+      console.log("Setting user data in queryClient cache");
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Also invalidate any user-dependent queries
+      queryClient.invalidateQueries({ queryKey: ["/api/user-settings"] });
+      
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.displayName}!`,
       });
     },
     onError: (error: Error) => {
+      console.error("Login mutation error handler:", error);
       toast({
         title: "Login failed",
         description: error.message,
@@ -55,14 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Registration mutation with improved error handling
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
-      return await apiRequest<Omit<SelectUser, "password">>("/api/register", {
-        method: "POST",
-        body: JSON.stringify(credentials)
-      });
+      console.log("Attempting to register new user:", credentials.username);
+      try {
+        const response = await apiRequest<Omit<SelectUser, "password">>("/api/register", {
+          method: "POST",
+          body: JSON.stringify(credentials)
+        });
+        console.log("Registration successful, received user data:", response);
+        return response;
+      } catch (error) {
+        console.error("Registration failed:", error);
+        throw error;
+      }
     },
     onSuccess: (user: Omit<SelectUser, "password">) => {
+      console.log("Setting user data in queryClient cache after registration");
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Registration successful",
@@ -70,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onError: (error: Error) => {
+      console.error("Registration mutation error handler:", error);
       toast({
         title: "Registration failed",
         description: error.message,
@@ -78,20 +112,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Logout mutation with improved error handling
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest<{message: string}>("/api/logout", {
-        method: "POST"
-      });
+      console.log("Attempting to log out");
+      try {
+        const response = await apiRequest<{message: string}>("/api/logout", {
+          method: "POST"
+        });
+        console.log("Logout successful:", response);
+        return response;
+      } catch (error) {
+        console.error("Logout failed:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
+      console.log("Clearing user data from queryClient cache");
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Also clear any user-dependent queries
+      queryClient.removeQueries({ queryKey: ["/api/user-settings"] });
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
     },
     onError: (error: Error) => {
+      console.error("Logout mutation error handler:", error);
       toast({
         title: "Logout failed",
         description: error.message,
@@ -109,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        refetchUser,
       }}
     >
       {children}

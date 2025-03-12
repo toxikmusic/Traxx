@@ -19,6 +19,7 @@ import Discover from "@/pages/discover";
 import Library from "@/pages/library";
 import GoLive from "@/pages/go-live";
 import AuthPage from "@/pages/auth-page";
+import AuthTest from "@/pages/auth-test";
 import UploadTrack from "@/pages/upload-track";
 import Dashboard from "@/pages/dashboard";
 
@@ -38,6 +39,7 @@ function Router() {
       <ProtectedRoute path="/upload-track" component={UploadTrack} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auth-test" component={AuthTest} />
       <Route component={NotFound} />
     </Switch>
   );
