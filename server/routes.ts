@@ -854,13 +854,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Cloudflare API key is valid",
         details: response.data
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Cloudflare API test failed:", error);
       
       return res.status(500).json({
         success: false,
         message: "Failed to verify Cloudflare API key",
-        error: error.response?.data || error.message
+        error: error.response?.data || (error instanceof Error ? error.message : String(error))
       });
     }
   });

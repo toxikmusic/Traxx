@@ -65,11 +65,12 @@ export default function GoLivePage() {
   const userId = user?.id || 1;
   
   // Initialize audio streaming and Cloudflare streaming service when component mounts
-  // Check Cloudflare API credentials
+  // Check Cloudflare API credentials and secret status
   useEffect(() => {
     const verifyCloudflareCredentials = async () => {
       if (user) {
         try {
+          // This will make the API call to verify the Cloudflare API key
           const result = await cloudflareStreamingService.verifyCredentials();
           setCloudflareApiVerified(result.success);
           setCloudflareApiMessage(result.message);
@@ -87,8 +88,42 @@ export default function GoLivePage() {
       }
     };
     
+    // Check if we have the Cloudflare API key in our environment
     verifyCloudflareCredentials();
   }, [user]);
+  
+  // Check secrets when component mounts or when environment might change
+  useEffect(() => {
+    // @ts-ignore - This is a special function handled by the assistant
+    if (typeof check_secrets === 'function') {
+      // @ts-ignore
+      check_secrets(["CLOUDFLARE_API_KEY"])
+        .then((result: any) => {
+          // If the result object contains CLOUDFLARE_API_KEY and it's true,
+          // we have the secret, verify the credentials
+          if (result && result.CLOUDFLARE_API_KEY) {
+            // We have the key, so now check if it's valid by verifying credentials
+            cloudflareStreamingService.verifyCredentials()
+              .then(result => {
+                setCloudflareApiVerified(result.success);
+                setCloudflareApiMessage(result.message);
+              })
+              .catch(error => {
+                console.error("Error verifying credentials after key check:", error);
+                setCloudflareApiVerified(false);
+                setCloudflareApiMessage("API key found but verification failed");
+              });
+          } else {
+            // We don't have the key
+            setCloudflareApiVerified(false);
+            setCloudflareApiMessage("Cloudflare API key not found in environment");
+          }
+        })
+        .catch((error: any) => {
+          console.error("Error checking secrets:", error);
+        });
+    }
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -692,11 +727,27 @@ export default function GoLivePage() {
                                 variant="outline" 
                                 size="sm"
                                 onClick={() => {
-                                  // We'll need to have the user set up the Cloudflare API key
                                   toast({
-                                    title: "API Key Required",
-                                    description: "Please contact your administrator to set up the Cloudflare API key.",
+                                    title: "Requesting API Key",
+                                    description: "You'll be prompted to enter your Cloudflare API key.",
                                   });
+                                  
+                                  // Request the Cloudflare API key from the user
+                                  // This will show a dialog for the user to enter the API key
+                                  // @ts-ignore - This is a special function handled by the assistant
+                                  if (typeof ask_secrets === 'function') {
+                                    // @ts-ignore
+                                    ask_secrets(
+                                      ["CLOUDFLARE_API_KEY"], 
+                                      "BeatStream needs a Cloudflare API key to enable live streaming functionality. You can get this from your Cloudflare dashboard."
+                                    );
+                                  } else {
+                                    toast({
+                                      title: "API Key Required",
+                                      description: "Please contact your administrator to set up the Cloudflare API key.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                               >
                                 Configure Cloudflare API Key
