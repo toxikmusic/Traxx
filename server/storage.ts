@@ -8,6 +8,8 @@ import {
   posts,
   likes,
   comments,
+  PostType,
+  type PostTypeValues,
   type User,
   type InsertUser,
   type Stream,
@@ -875,7 +877,7 @@ export class MemStorage implements IStorage {
         title: "New Studio Setup!",
         content: "Just finished setting up my new studio space. Can't wait to start creating some new music here!",
         imageUrl: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=400&q=80",
-        postType: "image",
+        postType: PostType.IMAGE,
         tags: ["Studio", "Setup", "Music Production"]
       },
       {
@@ -883,14 +885,14 @@ export class MemStorage implements IStorage {
         title: "Latest Track Preview",
         content: "Working on a new bass-heavy track. Here's a sneak peek of my workspace!",
         imageUrl: "https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=400&q=80",
-        postType: "image",
+        postType: PostType.IMAGE,
         tags: ["WIP", "Music", "Bass Music"]
       },
       {
         userId: 3,
         title: "Music Theory Tips",
         content: "Here's a quick tip for all producers: Learn your minor scales! They're the foundation of most electronic music genres, especially melodic techno and deep house.",
-        postType: "text",
+        postType: PostType.TEXT,
         tags: ["Music Theory", "Tips", "Production"]
       },
       {
@@ -898,14 +900,14 @@ export class MemStorage implements IStorage {
         title: "Festival Announcement",
         content: "Excited to announce I'll be playing at Electronic Forest Festival next month! Who's coming?",
         imageUrl: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=400&q=80",
-        postType: "image",
+        postType: PostType.IMAGE,
         tags: ["Festival", "Live Performance", "Announcement"]
       },
       {
         userId: 5,
         title: "Sample Pack Release",
         content: "Just dropped my new sample pack 'Urban Beats Vol. 2' - perfect for hip-hop and trap productions!",
-        postType: "text",
+        postType: PostType.TEXT,
         tags: ["Sample Pack", "Release", "Hip Hop"]
       },
       {
