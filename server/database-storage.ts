@@ -92,6 +92,18 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(users).values(user).returning();
     return result[0];
   }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
+    // Don't allow password updates through this method for security
+    const { password, ...safeData } = userData;
+    
+    const result = await db.update(users)
+      .set(safeData)
+      .where(eq(users.id, id))
+      .returning();
+    
+    return result[0];
+  }
 
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);

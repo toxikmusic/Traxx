@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUserSettings, updateUserSettings } from "@/lib/api";
+import { getUserSettings, updateUserSettings, updateUserProfile } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTheme } from "@/context/ThemeContext";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { apiRequest } from "@/lib/queryClient";
+import { User } from "@shared/schema";
+import { Camera, Loader2 } from "lucide-react";
 
 // Color options for UI theme
 const colorOptions = [
@@ -31,9 +37,10 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { primaryColor, setPrimaryColor } = useTheme();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Get the authenticated user's ID
-  const { user } = useAuth();
+  const { user, refetchUser } = useAuth();
   
   const { data: settings, isLoading, isError } = useQuery({
     queryKey: ['/api/user-settings', user?.id],
@@ -41,9 +48,16 @@ export default function SettingsPage() {
     enabled: !!user, // Only run the query if we have a user
   });
   
+  // State for appearance and playback settings
   const [selectedColor, setSelectedColor] = useState<string | null>(primaryColor);
   const [enableAutoplay, setEnableAutoplay] = useState<boolean | null>(null);
   const [sortType, setSortType] = useState<string | null>(null);
+  
+  // State for profile settings
+  const [displayName, setDisplayName] = useState<string>("");
+  const [bio, setBio] = useState<string>("");
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // Initialize state from fetched settings
   useEffect(() => {
@@ -53,6 +67,15 @@ export default function SettingsPage() {
       setSortType(settings.defaultSortType);
     }
   }, [settings]);
+  
+  // Initialize profile state from user data
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || "");
+      setBio(user.bio || "");
+      setProfileImageUrl(user.profileImageUrl);
+    }
+  }, [user]);
   
   // Update theme context when color changes
   const handleColorChange = (color: string) => {
@@ -80,6 +103,88 @@ export default function SettingsPage() {
     },
   });
   
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: any) => user ? updateUserProfile(user.id, data) : Promise.reject('No authenticated user'),
+    onSuccess: () => {
+      if (user) {
+        refetchUser();
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been saved successfully.",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const uploadImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      
+      return apiRequest<{ url: string }>("/api/upload/image", {
+        method: "POST",
+        body: formData,
+        // Don't set Content-Type header, it will be set automatically with boundary
+      });
+    },
+    onSuccess: (data) => {
+      setProfileImageUrl(data.url);
+      toast({
+        title: "Image Uploaded",
+        description: "Your profile image has been uploaded successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid File",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      toast({
+        title: "File Too Large",
+        description: "Image must be less than 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setUploadingImage(true);
+    uploadImageMutation.mutate(file, {
+      onSettled: () => {
+        setUploadingImage(false);
+      }
+    });
+  };
+  
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+  
   const saveSettings = () => {
     if (!user) {
       toast({
@@ -97,6 +202,23 @@ export default function SettingsPage() {
     });
   };
   
+  const saveProfile = () => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save profile",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateProfileMutation.mutate({
+      displayName,
+      bio,
+      profileImageUrl,
+    });
+  };
+  
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -111,12 +233,100 @@ export default function SettingsPage() {
         User Settings
       </h1>
       
-      <Tabs defaultValue="appearance" className="w-full">
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList className="mb-6">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="playback">Playback</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="profile">
+          <Card>
+            <CardHeader>
+              <CardTitle>Profile Settings</CardTitle>
+              <CardDescription>
+                Update your personal profile information
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="relative">
+                    <Avatar className="w-24 h-24">
+                      {profileImageUrl ? (
+                        <AvatarImage src={profileImageUrl} alt="Profile" />
+                      ) : (
+                        <AvatarFallback>{user?.displayName?.charAt(0) || user?.username.charAt(0)}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="absolute -bottom-2 -right-2 rounded-full p-2 h-auto"
+                      onClick={triggerFileInput}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Camera className="h-4 w-4" />
+                      )}
+                    </Button>
+                    
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      accept="image/*"
+                    />
+                  </div>
+                  
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <Label htmlFor="displayName" className="text-base mb-2 block">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your display name"
+                        className="max-w-md"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="bio" className="text-base mb-2 block">Bio</Label>
+                      <Textarea
+                        id="bio"
+                        value={bio || ""}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder="Tell others about yourself"
+                        className="max-w-md resize-none h-24"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button
+                onClick={saveProfile}
+                disabled={updateProfileMutation.isPending}
+              >
+                {updateProfileMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving Profile...
+                  </>
+                ) : (
+                  "Save Profile"
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
         
         <TabsContent value="appearance">
           <Card>
@@ -148,6 +358,21 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button
+                onClick={saveSettings}
+                disabled={updateSettingsMutation.isPending}
+              >
+                {updateSettingsMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Settings"
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
         
@@ -176,6 +401,21 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button
+                onClick={saveSettings}
+                disabled={updateSettingsMutation.isPending}
+              >
+                {updateSettingsMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Settings"
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
         
@@ -206,26 +446,24 @@ export default function SettingsPage() {
                 </div>
               </div>
             </CardContent>
+            <CardFooter>
+              <Button
+                onClick={saveSettings}
+                disabled={updateSettingsMutation.isPending}
+              >
+                {updateSettingsMutation.isPending ? (
+                  <>
+                    <Spinner size="sm" className="mr-2" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Settings"
+                )}
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>
-      
-      <div className="mt-6 flex justify-end">
-        <Button
-          onClick={saveSettings}
-          disabled={updateSettingsMutation.isPending}
-          className="px-6"
-        >
-          {updateSettingsMutation.isPending ? (
-            <>
-              <Spinner size="sm" className="mr-2" />
-              Saving...
-            </>
-          ) : (
-            "Save Settings"
-          )}
-        </Button>
-      </div>
     </div>
   );
 }

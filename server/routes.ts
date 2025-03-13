@@ -12,7 +12,8 @@ import {
   insertLikeSchema,
   insertCommentSchema,
   PostType,
-  type PostTypeValues
+  type PostTypeValues,
+  type InsertUser
 } from "@shared/schema";
 import { setupAuth } from "./auth";
 import multer from "multer";
@@ -105,6 +106,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Don't expose password in API response
     const { password, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
+  });
+  
+  // Update user profile
+  app.patch("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+    
+    // Only allow users to update their own profile
+    if (userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only update your own profile" });
+    }
+    
+    try {
+      // Only allow specific fields to be updated via this endpoint
+      const allowedFields = ['displayName', 'bio', 'profileImageUrl'];
+      const updateData: Partial<InsertUser> = {};
+      
+      for (const field of allowedFields) {
+        if (field in req.body) {
+          updateData[field as keyof InsertUser] = req.body[field];
+        }
+      }
+      
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      // Don't expose password in API response
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Error updating user profile" });
+    }
   });
   
   app.post("/api/users", async (req, res) => {

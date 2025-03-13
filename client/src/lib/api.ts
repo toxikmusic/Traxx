@@ -54,6 +54,18 @@ export async function updateUserSettings(userId: number, data: Partial<UserSetti
   });
 }
 
+// User Profile
+export async function updateUserProfile(userId: number, data: { 
+  displayName?: string; 
+  bio?: string; 
+  profileImageUrl?: string; 
+}): Promise<User> {
+  return await apiRequest<User>(`/api/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 // Tracks
 export async function getRecentTracks(): Promise<Track[]> {
   return await apiRequest<Track[]>("/api/tracks/recent");
