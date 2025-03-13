@@ -7,10 +7,10 @@ channel = "stable-24_05"
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "npm run build && npm run start"]
 
 [[ports]]
-localPort = 3000
+localPort = 5001
 externalPort = 80
 
 [[ports]]
@@ -18,7 +18,7 @@ localPort = 5000
 externalPort = 3000
 
 [[ports]]
-localPort = 5001
+localPort = 3000
 externalPort = 5000
 
 [workflows]
