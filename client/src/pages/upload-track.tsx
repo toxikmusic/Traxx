@@ -97,8 +97,7 @@ export default function UploadTrackPage() {
   // Track creation mutation
   const createTrackMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/tracks", { body: JSON.stringify(data) });
-      return await res.json();
+      return await apiRequest<any>("POST", "/api/tracks", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tracks/recent'] });
@@ -111,7 +110,7 @@ export default function UploadTrackPage() {
       
       navigate("/library");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to create track",
         description: error.message,
@@ -293,7 +292,7 @@ export default function UploadTrackPage() {
                             id="audio-upload" 
                             type="file" 
                             className="hidden" 
-                            accept="audio/*"
+                            accept="audio/*,.mp3,.wav,.ogg,.flac"
                             onChange={handleAudioChange}
                           />
                         </label>

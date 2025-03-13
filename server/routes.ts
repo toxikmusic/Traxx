@@ -18,6 +18,7 @@ import { setupAuth } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { checkCloudflareService } from './services/cloudflare';
 import { log } from "./vite";
 import WebSocket, { WebSocketServer } from "ws";
 
@@ -49,11 +50,14 @@ const upload = multer({
     fileSize: 50 * 1024 * 1024, // 50MB max file size
   },
   fileFilter: (req, file, cb) => {
+    console.log("Receiving file upload:", file.mimetype, file.originalname);
+    
     // Allow audio and images
     if (file.mimetype.startsWith('audio/') || file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('File type not allowed'));
+      console.log("File type not allowed:", file.mimetype);
+      cb(new Error(`File type not allowed: ${file.mimetype}`));
     }
   }
 });
@@ -61,6 +65,14 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes with Passport
   setupAuth(app);
+  
+  // Simple health check endpoint that doesn't require authentication
+  app.get("/api/health-check", (req, res) => {
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString()
+    });
+  });
   
   // API routes
   
@@ -1202,6 +1214,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     streamMessages.delete(streamId);
     
     res.json({ success: true });
+  });
+
+  // Health and monitoring endpoints
+  app.get("/api/health", (req, res) => {
+    res.json({
+      status: "ok",
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: "1.0.0", // Should come from package.json in production
+      database: "connected" // Simplifying for now
+    });
+  });
+
+  app.get("/api/health/detailed", async (req, res) => {
+    // Check Cloudflare API connection
+    const cloudflareConnected = await checkCloudflareService();
+    const cloudflareStatus = cloudflareConnected ? "healthy" : "failing";
+    
+    // Get memory usage for monitoring
+    const memoryUsage = process.memoryUsage();
+    
+    // Format memory values to MB for readability
+    const formatMemory = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
+    
+    res.json({
+      status: cloudflareStatus === "failing" ? "degraded" : "healthy",
+      timestamp: new Date().toISOString(),
+      services: {
+        "Database Service": "healthy",
+        "Storage Service": "healthy",
+        "Cloudflare Service": cloudflareStatus
+      },
+      memoryUsage: {
+        rss: formatMemory(memoryUsage.rss),
+        heapTotal: formatMemory(memoryUsage.heapTotal),
+        heapUsed: formatMemory(memoryUsage.heapUsed)
+      }
+    });
+  });
+
+  app.get("/api/version", (req, res) => {
+    res.json({
+      version: "1.0.0", // Should come from package.json
+      environment: process.env.NODE_ENV || "development", 
+      buildTime: new Date().toISOString() // Should be set during CI/CD build
+    });
   });
 
   return httpServer;

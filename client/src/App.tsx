@@ -22,6 +22,7 @@ import AuthPage from "@/pages/auth-page";
 import AuthTest from "@/pages/auth-test";
 import UploadTrack from "@/pages/upload-track";
 import Dashboard from "@/pages/dashboard";
+import HealthTest from "@/pages/health-test";
 
 function Router() {
   return (
@@ -40,6 +41,8 @@ function Router() {
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/auth-test" component={AuthTest} />
+      <Route path="/health-test" component={HealthTest} />
+      <Route path="/upload-public" component={UploadTrack} />
       <Route component={NotFound} />
     </Switch>
   );

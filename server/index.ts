@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
+import http from "http";
 
 const app = express();
 app.use(express.json());
@@ -9,6 +10,12 @@ app.use(express.urlencoded({ extended: false }));
 
 // Serve uploaded files
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
+// Add a simple direct health check endpoint
+app.get("/api/health-check", (req, res) => {
+  console.log("Health check requested");
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -60,9 +67,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Serve the app on port 3000 (instead of 5000)
+  // Serve the app on port 5000
   // this serves both the API and the client
-  const port = 3000;
+  const port = 5000;
   server.listen({
     port,
     host: "0.0.0.0",
