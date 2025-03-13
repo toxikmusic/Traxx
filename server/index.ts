@@ -14,7 +14,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 // Add a simple direct health check endpoint
 app.get("/api/health-check", (req, res) => {
   console.log("Health check requested");
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", appName: "Traxx", timestamp: new Date().toISOString() });
 });
 
 app.use((req, res, next) => {

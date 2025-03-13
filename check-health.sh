@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Starting BeatStream Health Check...${NC}"
+echo -e "${YELLOW}Starting Traxx Health Check...${NC}"
 
 # Check if node is available
 if ! command -v node &> /dev/null; then

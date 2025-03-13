@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# BeatStream Production Readiness Check Script
+# Traxx Production Readiness Check Script
 
-echo -e "\033[0;34m🚀 Running BeatStream Production Readiness Check...\033[0m"
+echo -e "\033[0;34m🚀 Running Traxx Production Readiness Check...\033[0m"
 echo ""
 
 # Run the production check tool

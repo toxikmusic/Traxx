@@ -85,7 +85,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md space-y-6">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-              BeatStream
+              Traxx
             </h1>
             <p className="text-muted-foreground">
               {activeTab === "login"
@@ -276,7 +276,7 @@ export default function AuthPage() {
             Your music, your audience, all in one place
           </h2>
           <p className="text-xl font-light">
-            BeatStream is the ultimate platform for musicians to connect with
+            Traxx is the ultimate platform for musicians to connect with
             fans, live stream performances, and share music with the world.
           </p>
           <div className="space-y-6">

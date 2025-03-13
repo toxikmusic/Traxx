@@ -346,7 +346,7 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Appearance Settings</CardTitle>
               <CardDescription>
-                Customize how BeatStream looks for you
+                Customize how Traxx looks for you
               </CardDescription>
             </CardHeader>
             <CardContent>

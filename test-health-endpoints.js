@@ -5,7 +5,7 @@ const domain = process.env.REPLIT_DOMAINS ? process.env.REPLIT_DOMAINS.split(','
 const protocol = domain.includes('localhost') ? 'http' : 'https';
 const baseUrl = `${protocol}://${domain}`;
 
-console.log(`\n🔍 Testing BeatStream health endpoints on ${baseUrl} ...\n`);
+console.log(`\n🔍 Testing Traxx health endpoints on ${baseUrl} ...\n`);
 
 // Test the basic health check endpoint
 async function testBasicHealthCheck() {

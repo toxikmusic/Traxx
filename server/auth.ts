@@ -30,7 +30,7 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "beatstream-secret-key",
+    secret: process.env.SESSION_SECRET || "traxx-secret-key",
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,

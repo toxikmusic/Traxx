@@ -1,5 +1,5 @@
 /**
- * Audio Processor Worklet for BeatStream
+ * Audio Processor Worklet for Traxx
  * Handles efficient audio processing for streaming with dynamic compression
  */
 

@@ -81,7 +81,7 @@ export default function HealthTestPage() {
     <div className="min-h-screen w-full p-6 bg-gray-50 dark:bg-gray-900">
       <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">BeatStream Health Status</CardTitle>
+          <CardTitle className="text-2xl font-bold">Traxx Health Status</CardTitle>
         </CardHeader>
         <CardContent>
           {error && (

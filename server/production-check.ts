@@ -1,5 +1,5 @@
 /**
- * BeatStream Production Readiness Check Tool
+ * Traxx Production Readiness Check Tool
  * 
  * This script verifies that the application is ready for production deployment
  * by checking various aspects of the codebase and configuration.

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Running database migration for BeatStream..."
+echo "Running database migration for Traxx..."
 
 # Use the DATABASE_URL environment variable
 if [ -z "$DATABASE_URL" ]; then
