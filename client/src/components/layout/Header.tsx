@@ -35,7 +35,7 @@ export default function Header() {
           <div className="flex items-center">
             <Link href="/">
               <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent cursor-pointer">
-                BeatStream
+                Traxx
               </h1>
             </Link>
           </div>
