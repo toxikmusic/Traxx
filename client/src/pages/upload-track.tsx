@@ -46,7 +46,7 @@ export default function UploadTrackPage() {
   const queryClient = useQueryClient();
   const [audioPreview, setAudioPreview] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
-  
+
   // Get genres for the dropdown
   const { data: genres = [], isLoading: isLoadingGenres } = useQuery<Genre[]>({
     queryKey: ['/api/genres'],
@@ -102,12 +102,12 @@ export default function UploadTrackPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tracks/recent'] });
       queryClient.invalidateQueries({ queryKey: [`/api/tracks/user/${user?.id}`] });
-      
+
       toast({
         title: "Track uploaded successfully!",
         description: "Your track is now available for listeners.",
       });
-      
+
       navigate("/library");
     },
     onError: (error: Error) => {
@@ -118,7 +118,7 @@ export default function UploadTrackPage() {
       });
     }
   });
-  
+
   // Handle form submission
   const onSubmit = async (values: FormValues) => {
     if (!user) {
@@ -129,18 +129,18 @@ export default function UploadTrackPage() {
       });
       return;
     }
-    
+
     try {
       // First upload the audio file
       const audioResult = await audioUploadMutation.mutateAsync(values.audioFile);
-      
+
       // If there's a cover image, upload it
       let coverUrl = null;
       if (values.coverFile) {
         const coverResult = await coverUploadMutation.mutateAsync(values.coverFile);
         coverUrl = coverResult.url;
       }
-      
+
       // Create the track with the file URLs
       await createTrackMutation.mutateAsync({
         userId: user.id,
@@ -151,44 +151,44 @@ export default function UploadTrackPage() {
         coverUrl: coverUrl,
         duration: audioResult.duration,
       });
-      
+
     } catch (error) {
       console.error("Error in track upload process:", error);
     }
   };
-  
+
   // Handle audio file change
   const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       form.setValue("audioFile", file);
-      
+
       // Create preview URL
       const url = URL.createObjectURL(file);
       setAudioPreview(url);
-      
+
       // Clean up previous preview URL
       return () => URL.revokeObjectURL(url);
     }
   };
-  
+
   // Handle cover image change
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       form.setValue("coverFile", file);
-      
+
       // Create preview URL
       const url = URL.createObjectURL(file);
       setCoverPreview(url);
-      
+
       // Clean up previous preview URL
       return () => URL.revokeObjectURL(url);
     }
   };
-  
+
   const isLoading = audioUploadMutation.isPending || coverUploadMutation.isPending || createTrackMutation.isPending;
-  
+
   return (
     <div className="container py-10">
       <div className="mb-8 space-y-2">
@@ -197,7 +197,7 @@ export default function UploadTrackPage() {
           Share your music with the BeatStream community
         </p>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2">
           <Form {...form}>
@@ -215,7 +215,7 @@ export default function UploadTrackPage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="artistName"
@@ -229,7 +229,7 @@ export default function UploadTrackPage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="genre"
@@ -266,25 +266,27 @@ export default function UploadTrackPage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="audioFile"
                 render={() => (
                   <FormItem>
-                    <FormLabel>Audio File</FormLabel>
+                    <FormLabel className="text-base font-medium">Audio File</FormLabel>
                     <FormControl>
                       <div className="flex items-center justify-center w-full">
                         <label
                           htmlFor="audio-upload"
-                          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-bray-800 dark:bg-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                          className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50/5 hover:bg-gray-100/10 dark:border-gray-600/40 dark:hover:border-purple-500/50 transition-all duration-300 backdrop-blur-sm group"
                         >
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <Music className="w-8 h-8 mb-3 text-gray-400" />
-                            <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                            <div className="w-16 h-16 mb-3 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center group-hover:from-purple-500/30 group-hover:to-pink-500/30 transition-all duration-300">
+                              <Music className="w-8 h-8 text-purple-400 group-hover:text-purple-300 transition-colors" />
+                            </div>
+                            <p className="mb-2 text-base text-gray-400 group-hover:text-gray-300 transition-colors">
                               <span className="font-semibold">Click to upload</span> or drag and drop
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-300 transition-colors">
                               MP3, WAV, FLAC or OGG (MAX. 50MB)
                             </p>
                           </div>
@@ -292,7 +294,7 @@ export default function UploadTrackPage() {
                             id="audio-upload" 
                             type="file" 
                             className="hidden" 
-                            accept="audio/*,.mp3,.wav,.ogg,.flac"
+                            accept=".mp3,.wav,.flac,.ogg"
                             onChange={handleAudioChange}
                           />
                         </label>
@@ -302,7 +304,7 @@ export default function UploadTrackPage() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="coverFile"
@@ -338,7 +340,7 @@ export default function UploadTrackPage() {
                   </FormItem>
                 )}
               />
-              
+
               <Button
                 type="submit"
                 className="w-full"
@@ -359,10 +361,10 @@ export default function UploadTrackPage() {
             </form>
           </Form>
         </div>
-        
+
         <div>
           <h3 className="text-xl font-medium mb-4">Track Preview</h3>
-          
+
           <Card className="overflow-hidden">
             <div className="aspect-square bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
               {coverPreview ? (
@@ -375,7 +377,7 @@ export default function UploadTrackPage() {
                 <Music className="h-20 w-20 text-gray-400" />
               )}
             </div>
-            
+
             <CardContent className="p-4">
               <h4 className="font-semibold text-lg truncate">
                 {form.watch("title") || "Track Title"}
@@ -383,7 +385,7 @@ export default function UploadTrackPage() {
               <p className="text-sm text-muted-foreground truncate">
                 {form.watch("artistName") || "Artist Name"}
               </p>
-              
+
               {audioPreview && (
                 <div className="mt-4">
                   <audio 

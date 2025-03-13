@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -45,5 +46,54 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    background-image: radial-gradient(
+      circle at top center,
+      hsl(var(--primary) / 0.1),
+      transparent 50%
+    );
+    background-attachment: fixed;
+  }
+}
+
+/* Enhanced component styles */
+@layer components {
+  .card {
+    @apply relative overflow-hidden transition-all duration-300 hover:shadow-lg;
+    backdrop-filter: blur(8px);
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .gradient-heading {
+    @apply bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent;
+  }
+  
+  .gradient-border {
+    @apply relative;
+  }
+  
+  .gradient-border::after {
+    content: "";
+    @apply absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 transform scale-x-0 transition-transform duration-300 origin-bottom-left;
+  }
+  
+  .gradient-border:hover::after {
+    @apply scale-x-100;
+  }
+  
+  .glass-effect {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .animated-bg {
+    @apply relative overflow-hidden;
+  }
+  
+  .animated-bg::before {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 animate-pulse;
+    animation-duration: 3s;
   }
 }

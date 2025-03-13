@@ -257,47 +257,60 @@ export default function AuthPage() {
       </div>
 
       {/* Hero image section */}
-      <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 to-black p-8">
-        <div className="max-w-xl space-y-6 text-white">
-          <h2 className="text-4xl font-bold">
+      <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-indigo-900 to-black p-8 relative overflow-hidden">
+        {/* Animated background dots */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute w-2 h-2 rounded-full bg-white animate-pulse" style={{ top: '10%', left: '10%', animationDelay: '0s' }}></div>
+          <div className="absolute w-1 h-1 rounded-full bg-white animate-pulse" style={{ top: '20%', left: '30%', animationDelay: '0.5s' }}></div>
+          <div className="absolute w-2 h-2 rounded-full bg-white animate-pulse" style={{ top: '45%', left: '15%', animationDelay: '1s' }}></div>
+          <div className="absolute w-1 h-1 rounded-full bg-white animate-pulse" style={{ top: '70%', left: '35%', animationDelay: '1.5s' }}></div>
+          <div className="absolute w-2 h-2 rounded-full bg-white animate-pulse" style={{ top: '85%', left: '20%', animationDelay: '2s' }}></div>
+          <div className="absolute w-1 h-1 rounded-full bg-white animate-pulse" style={{ top: '30%', left: '80%', animationDelay: '2.5s' }}></div>
+          <div className="absolute w-2 h-2 rounded-full bg-white animate-pulse" style={{ top: '60%', left: '75%', animationDelay: '3s' }}></div>
+          <div className="absolute w-1 h-1 rounded-full bg-white animate-pulse" style={{ top: '15%', left: '60%', animationDelay: '3.5s' }}></div>
+          <div className="absolute w-2 h-2 rounded-full bg-white animate-pulse" style={{ top: '80%', left: '60%', animationDelay: '4s' }}></div>
+        </div>
+        
+        <div className="max-w-xl space-y-8 text-white z-10">
+          <h2 className="text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Your music, your audience, all in one place
           </h2>
-          <p className="text-lg">
+          <p className="text-xl font-light">
             BeatStream is the ultimate platform for musicians to connect with
             fans, live stream performances, and share music with the world.
           </p>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="h-10 w-10 rounded-full bg-purple-500 flex items-center justify-center">
+          <div className="space-y-6">
+            <div className="flex items-start space-x-4 backdrop-blur-sm bg-white/5 rounded-lg p-4 transition-all hover:bg-white/10">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shadow-lg">
                 🎵
               </div>
               <div>
-                <h3 className="font-medium">Live Streaming</h3>
-                <p className="text-sm text-gray-300">
+                <h3 className="font-semibold text-lg text-purple-300">Live Streaming</h3>
+                <p className="text-base text-gray-300">
                   Connect with your audience in real-time through high-quality
                   audio streaming.
                 </p>
               </div>
             </div>
-            <div className="flex items-start space-x-3">
-              <div className="h-10 w-10 rounded-full bg-pink-500 flex items-center justify-center">
+            <div className="flex items-start space-x-4 backdrop-blur-sm bg-white/5 rounded-lg p-4 transition-all hover:bg-white/10">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center shadow-lg">
                 💿
               </div>
               <div>
-                <h3 className="font-medium">Track Library</h3>
-                <p className="text-sm text-gray-300">
+                <h3 className="font-semibold text-lg text-pink-300">Track Library</h3>
+                <p className="text-base text-gray-300">
                   Upload your music and build your discography for fans to
                   explore.
                 </p>
               </div>
             </div>
-            <div className="flex items-start space-x-3">
-              <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+            <div className="flex items-start space-x-4 backdrop-blur-sm bg-white/5 rounded-lg p-4 transition-all hover:bg-white/10">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
                 💬
               </div>
               <div>
-                <h3 className="font-medium">Community</h3>
-                <p className="text-sm text-gray-300">
+                <h3 className="font-semibold text-lg text-blue-300">Community</h3>
+                <p className="text-base text-gray-300">
                   Engage with a vibrant community of musicians and music lovers.
                 </p>
               </div>
