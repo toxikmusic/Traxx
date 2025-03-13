@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getUserSettings } from '@/lib/api';
+import { useAuth } from '@/hooks/use-auth';
 
 type ThemeContextType = {
   primaryColor: string;
@@ -15,12 +16,13 @@ const DEFAULT_PRIMARY_COLOR = '#8B5CF6'; // Purple
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY_COLOR);
   
-  // For demo purposes using a fixed userId. In a real app, this would come from authentication.
-  const userId = 1;
+  // Get the authenticated user
+  const { user } = useAuth();
   
   const { data: settings } = useQuery({
-    queryKey: ['/api/user-settings', userId],
-    queryFn: () => getUserSettings(userId),
+    queryKey: ['/api/user-settings', user?.id],
+    queryFn: () => user ? getUserSettings(user.id) : Promise.reject('No authenticated user'),
+    enabled: !!user, // Only run the query if we have a user
   });
   
   // Update theme when settings are loaded

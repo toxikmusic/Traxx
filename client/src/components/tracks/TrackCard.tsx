@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import ShareWidget from "@/components/social/ShareWidget";
 
 interface TrackCardProps {
   track: Track;
@@ -147,8 +148,24 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                     <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                       Like track
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
-                      Share
+                    <DropdownMenuItem 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // This will be handled by the ShareWidget component
+                      }}
+                    >
+                      <div 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="w-full"
+                      >
+                        <ShareWidget 
+                          title={track.title}
+                          description={`A track by ${track.artistName}`}
+                          url={`/track/${track.id}`}
+                          type="track"
+                          compact={true}
+                        />
+                      </div>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

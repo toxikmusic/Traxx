@@ -8,183 +8,57 @@ import StreamCard from "@/components/streams/StreamCard";
 import TrackCard from "@/components/tracks/TrackCard";
 import CreatorCard from "@/components/creators/CreatorCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Stream, Track, User } from "@shared/schema";
+import { Stream, Track, User, Post } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
+import PostCard from "@/components/posts/PostCard";
+import { getFeaturedStreams, getRecentTracks, getRecommendedCreators } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { MusicIcon, RadioIcon, Pencil } from "lucide-react";
 
 export default function Home() {
+  const { user } = useAuth();
+
   // Fetch featured streams
   const { data: featuredStreams, isLoading: streamsLoading } = useQuery<Stream[]>({
     queryKey: ['/api/streams/featured'],
-    enabled: false, // We'll simulate with mock data for now
+    queryFn: getFeaturedStreams
   });
 
   // Fetch recent tracks
   const { data: recentTracks, isLoading: tracksLoading } = useQuery<Track[]>({
     queryKey: ['/api/tracks/recent'],
-    enabled: false, // We'll simulate with mock data for now
+    queryFn: getRecentTracks
   });
 
   // Fetch recommended creators
-  const { data: creators, isLoading: creatorsLoading } = useQuery<User[]>({
+  const { data: recommendedCreators, isLoading: creatorsLoading } = useQuery<User[]>({
     queryKey: ['/api/creators/recommended'],
-    enabled: false, // We'll simulate with mock data for now
+    queryFn: getRecommendedCreators
   });
 
-  // Mock data for initial render
-  const mockStreams: Stream[] = [
-    {
-      id: 1,
-      userId: 101,
-      title: "Deep House Vibes",
-      description: "Late night deep house session",
-      thumbnailUrl: "https://images.unsplash.com/photo-1516873240891-4bf014598ab4?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
-      isLive: true,
-      viewerCount: 1200,
-      startedAt: new Date(),
-      category: "House",
-      tags: ["House", "Electronic"]
+  // Fetch posts by current user
+  const { data: userPosts, isLoading: postsLoading } = useQuery<Post[]>({
+    queryKey: ['/api/posts/user', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const response = await fetch(`/api/posts/user/${user.id}`);
+      if (!response.ok) throw new Error('Failed to fetch posts');
+      return response.json();
     },
-    {
-      id: 2,
-      userId: 102,
-      title: "Beat Making 101",
-      description: "Learn how to make beats from scratch",
-      thumbnailUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
-      isLive: true,
-      viewerCount: 856,
-      startedAt: new Date(),
-      category: "Tutorial",
-      tags: ["Hip Hop", "Tutorial"]
-    },
-    {
-      id: 3,
-      userId: 103,
-      title: "Lofi & Chill",
-      description: "Relaxing beats to study/chill to",
-      thumbnailUrl: "https://images.unsplash.com/photo-1598653222000-6b7b7a552625?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
-      isLive: true,
-      viewerCount: 3400,
-      startedAt: new Date(),
-      category: "Lo-Fi",
-      tags: ["Lo-Fi", "Chill"]
-    }
-  ];
+    enabled: !!user
+  });
 
-  const mockTracks: Track[] = [
-    {
-      id: 1,
-      userId: 101,
-      title: "Midnight Drive",
-      artistName: "Synthwave Express",
-      coverUrl: "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1b8de8c112.mp3?filename=floating-abstract-142819.mp3",
-      duration: 222,
-      playCount: 1200,
-      likeCount: 342,
-      uploadedAt: new Date(),
-      genre: "Synthwave"
+  // Fetch tracks by current user
+  const { data: userTracks, isLoading: userTracksLoading } = useQuery<Track[]>({
+    queryKey: ['/api/tracks/user', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const response = await fetch(`/api/tracks/user/${user.id}`);
+      if (!response.ok) throw new Error('Failed to fetch tracks');
+      return response.json();
     },
-    {
-      id: 2,
-      userId: 102,
-      title: "Deep Blue",
-      artistName: "Ocean Waves",
-      coverUrl: "https://images.unsplash.com/photo-1496293455970-f8581aae0e3b?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_946b0939c8.mp3?filename=chill-out-12624.mp3",
-      duration: 258,
-      playCount: 2500,
-      likeCount: 645,
-      uploadedAt: new Date(),
-      genre: "Ambient"
-    },
-    {
-      id: 3,
-      userId: 103,
-      title: "Urban Soul",
-      artistName: "City Beats",
-      coverUrl: "https://images.unsplash.com/photo-1560800452-f2d475982b96?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/16/audio_1333dfb36d.mp3?filename=lofi-study-112191.mp3",
-      duration: 185,
-      playCount: 968,
-      likeCount: 217,
-      uploadedAt: new Date(),
-      genre: "Lo-Fi"
-    },
-    {
-      id: 4,
-      userId: 104,
-      title: "Forest Dreams",
-      artistName: "Ambient Collective",
-      coverUrl: "https://images.unsplash.com/photo-1446057032654-9d8885db76c6?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2021/11/25/audio_f8eb536e68.mp3?filename=ambient-piano-amp-strings-10711.mp3",
-      duration: 322,
-      playCount: 3100,
-      likeCount: 789,
-      uploadedAt: new Date(),
-      genre: "Ambient"
-    }
-  ];
-
-  const mockCreators: User[] = [
-    {
-      id: 101,
-      username: "marcuslee",
-      password: "",
-      displayName: "Marcus Lee",
-      bio: "EDM Producer",
-      profileImageUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&h=100&q=80",
-      isStreaming: false,
-      followerCount: 23000,
-      createdAt: new Date()
-    },
-    {
-      id: 102,
-      username: "sophiachen",
-      password: "",
-      displayName: "Sophia Chen",
-      bio: "Lo-Fi Artist",
-      profileImageUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&h=100&q=80",
-      isStreaming: false,
-      followerCount: 12000,
-      createdAt: new Date()
-    },
-    {
-      id: 103,
-      username: "jameswilson",
-      password: "",
-      displayName: "James Wilson",
-      bio: "House DJ",
-      profileImageUrl: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&h=100&q=80",
-      isStreaming: false,
-      followerCount: 45000,
-      createdAt: new Date()
-    },
-    {
-      id: 104,
-      username: "tanyarodriguez",
-      password: "",
-      displayName: "Tanya Rodriguez",
-      bio: "Trap Producer",
-      profileImageUrl: "https://images.unsplash.com/photo-1573140247632-f8fd74997d5c?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&h=100&q=80",
-      isStreaming: false,
-      followerCount: 19000,
-      createdAt: new Date()
-    },
-    {
-      id: 105,
-      username: "aishajohnson",
-      password: "",
-      displayName: "Aisha Johnson",
-      bio: "Soul Vocalist",
-      profileImageUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&h=100&q=80",
-      isStreaming: false,
-      followerCount: 31000,
-      createdAt: new Date()
-    }
-  ];
-
-  const streams = featuredStreams || mockStreams;
-  const tracks = recentTracks || mockTracks;
-  const recommendedCreators = creators || mockCreators;
+    enabled: !!user
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-dark-300 text-white">
@@ -195,6 +69,86 @@ export default function Home() {
         
         <div className="flex-1 md:ml-60 pb-20 md:pb-24">
           <div className="max-w-7xl mx-auto px-4 py-5">
+            {/* Your Content Section (if user is logged in) */}
+            {user && (
+              <section className="mb-10 bg-dark-200 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold">Your BeatStream</h2>
+                  <div className="flex space-x-2">
+                    <Link href="/upload-track">
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <MusicIcon size={16} />
+                        <span>Upload Track</span>
+                      </Button>
+                    </Link>
+                    <Link href="/go-live">
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <RadioIcon size={16} />
+                        <span>Go Live</span>
+                      </Button>
+                    </Link>
+                    <Link href="/posts/new">
+                      <Button variant="outline" size="sm" className="flex items-center gap-2">
+                        <Pencil size={16} />
+                        <span>Create Post</span>
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                
+                {/* User's Tracks */}
+                {userTracks && userTracks.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold mb-3">Your Tracks</h3>
+                    <div className="space-y-3">
+                      {userTracksLoading ? (
+                        <Skeleton className="h-20 w-full" />
+                      ) : (
+                        userTracks.map(track => (
+                          <TrackCard key={track.id} track={track} showBadge={true} />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* User's Posts */}
+                {userPosts && userPosts.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Your Posts</h3>
+                    <div className="space-y-4">
+                      {postsLoading ? (
+                        <Skeleton className="h-32 w-full" />
+                      ) : (
+                        userPosts.map(post => (
+                          <PostCard key={post.id} post={{...post, user: {
+                            displayName: user.displayName,
+                            profileImageUrl: user.profileImageUrl
+                          }}} />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Empty State */}
+                {(!userTracks || userTracks.length === 0) && (!userPosts || userPosts.length === 0) && (
+                  <div className="text-center py-10">
+                    <h3 className="text-xl font-medium mb-2">Share your music with the world</h3>
+                    <p className="text-gray-400 mb-4">Upload tracks, go live, or create posts to get started</p>
+                    <div className="flex justify-center space-x-3">
+                      <Link href="/upload-track">
+                        <Button className="flex items-center gap-2">
+                          <MusicIcon size={16} />
+                          <span>Upload Your First Track</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+            
             {/* Featured streams section */}
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
@@ -222,10 +176,15 @@ export default function Home() {
                       </div>
                     </div>
                   ))
-                ) : (
-                  streams.map(stream => (
+                ) : featuredStreams && featuredStreams.length > 0 ? (
+                  featuredStreams.map((stream: Stream) => (
                     <StreamCard key={stream.id} stream={stream} />
                   ))
+                ) : (
+                  <div className="col-span-1 sm:col-span-2 lg:col-span-3 text-center py-10 bg-dark-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">No live streams right now</h3>
+                    <p className="text-gray-400">Check back later or start streaming yourself</p>
+                  </div>
                 )}
               </div>
             </section>
@@ -264,10 +223,18 @@ export default function Home() {
                       </div>
                     </div>
                   ))
-                ) : (
-                  tracks.map(track => (
+                ) : recentTracks && recentTracks.length > 0 ? (
+                  recentTracks.map((track: Track) => (
                     <TrackCard key={track.id} track={track} />
                   ))
+                ) : (
+                  <div className="text-center py-10 bg-dark-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">No tracks uploaded yet</h3>
+                    <p className="text-gray-400 mb-4">Be the first to share your music</p>
+                    <Link href="/upload-track">
+                      <Button>Upload Track</Button>
+                    </Link>
+                  </div>
                 )}
               </div>
             </section>
@@ -276,7 +243,7 @@ export default function Home() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Discover Creators</h2>
-                <Link href="/creators" className="text-sm text-primary hover:underline">
+                <Link href="/discover" className="text-sm text-primary hover:underline">
                   See All
                 </Link>
               </div>
@@ -292,14 +259,19 @@ export default function Home() {
                       <Skeleton className="h-8 w-full rounded-full mt-3" />
                     </div>
                   ))
-                ) : (
-                  recommendedCreators.map(creator => (
+                ) : recommendedCreators && recommendedCreators.length > 0 ? (
+                  recommendedCreators.map((creator: User) => (
                     <CreatorCard 
                       key={creator.id} 
                       creator={creator} 
-                      isFollowing={creator.id === 102 || creator.id === 105}
+                      isFollowing={false}
                     />
                   ))
+                ) : (
+                  <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 text-center py-10 bg-dark-200 rounded-lg">
+                    <h3 className="text-lg font-medium mb-2">No recommended creators yet</h3>
+                    <p className="text-gray-400">Check back soon for personalized recommendations</p>
+                  </div>
                 )}
               </div>
             </section>

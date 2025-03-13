@@ -695,10 +695,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      const settingsData = req.body;
+      console.log("Received settings update:", {
+        userId: userId,
+        body: req.body,
+        contentType: req.headers['content-type']
+      });
+      
+      // Extract only the fields we want to update
+      const allowedFields = ['uiColor', 'enableAutoplay', 'defaultSortType'];
+      const settingsData: Record<string, any> = {};
+      
+      for (const field of allowedFields) {
+        if (field in req.body) {
+          settingsData[field] = req.body[field];
+        }
+      }
+      
+      console.log("Filtered settings data:", settingsData);
+      
       const settings = await storage.updateUserSettings(userId, settingsData);
+      console.log("Updated settings:", settings);
+      
       res.json(settings);
     } catch (error) {
+      console.error("Error updating user settings:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid settings data", errors: error.errors });
       }

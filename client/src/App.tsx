@@ -23,6 +23,7 @@ import AuthTest from "@/pages/auth-test";
 import UploadTrack from "@/pages/upload-track";
 import Dashboard from "@/pages/dashboard";
 import HealthTest from "@/pages/health-test";
+import SharePage from "@/pages/share";
 
 function Router() {
   return (
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/auth-test" component={AuthTest} />
       <Route path="/health-test" component={HealthTest} />
       <Route path="/upload-public" component={UploadTrack} />
+      <Route path="/share" component={SharePage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -51,14 +53,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
           <AudioPlayerProvider>
             <Router />
             <Toaster />
           </AudioPlayerProvider>
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

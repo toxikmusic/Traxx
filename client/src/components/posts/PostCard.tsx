@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import ShareWidget from "@/components/social/ShareWidget";
 
 interface PostCardProps {
   post: Post & { user?: { displayName: string; profileImageUrl: string | null } };
@@ -53,15 +54,24 @@ export default function PostCard({ post }: PostCardProps) {
         )}
       </CardContent>
       <CardFooter className="pt-2 border-t">
-        <div className="flex items-center gap-6 text-muted-foreground">
-          <button className="flex items-center gap-1.5 hover:text-primary transition-colors">
-            <Heart size={18} />
-            <span>{post.likeCount}</span>
-          </button>
-          <button className="flex items-center gap-1.5 hover:text-primary transition-colors">
-            <MessageSquare size={18} />
-            <span>{post.commentCount}</span>
-          </button>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-6 text-muted-foreground">
+            <button className="flex items-center gap-1.5 hover:text-primary transition-colors">
+              <Heart size={18} />
+              <span>{post.likeCount}</span>
+            </button>
+            <button className="flex items-center gap-1.5 hover:text-primary transition-colors">
+              <MessageSquare size={18} />
+              <span>{post.commentCount}</span>
+            </button>
+          </div>
+          <ShareWidget
+            title={post.title}
+            description={post.content?.substring(0, 100) || ""}
+            url={`/post/${post.id}`}
+            type="post"
+            compact={true}
+          />
         </div>
       </CardFooter>
     </Card>

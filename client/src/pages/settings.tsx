@@ -17,6 +17,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 import { Camera, Loader2 } from "lucide-react";
 
+// Default color if no settings are found - must match the one in ThemeContext
+const DEFAULT_PRIMARY_COLOR = '#8B5CF6'; // Purple
+
 // Color options for UI theme
 const colorOptions = [
   { name: "Purple", value: "#8B5CF6" },
@@ -84,8 +87,12 @@ export default function SettingsPage() {
   };
   
   const updateSettingsMutation = useMutation({
-    mutationFn: (data: any) => user ? updateUserSettings(user.id, data) : Promise.reject('No authenticated user'),
-    onSuccess: () => {
+    mutationFn: (data: any) => {
+      console.log("Updating user settings with data:", data);
+      return user ? updateUserSettings(user.id, data) : Promise.reject('No authenticated user');
+    },
+    onSuccess: (updatedSettings) => {
+      console.log("Settings update success, updated settings:", updatedSettings);
       if (user) {
         queryClient.invalidateQueries({ queryKey: ['/api/user-settings', user.id] });
         toast({
@@ -94,7 +101,8 @@ export default function SettingsPage() {
         });
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Settings update error:", error);
       toast({
         title: "Error",
         description: "Failed to update settings. Please try again.",
@@ -195,11 +203,16 @@ export default function SettingsPage() {
       return;
     }
     
-    updateSettingsMutation.mutate({
-      uiColor: selectedColor,
-      enableAutoplay,
-      defaultSortType: sortType,
-    });
+    // Make sure we're sending valid values, not null or undefined
+    const settingsToUpdate = {
+      uiColor: selectedColor || DEFAULT_PRIMARY_COLOR,
+      enableAutoplay: enableAutoplay === null ? false : enableAutoplay,
+      defaultSortType: sortType || "recent",
+    };
+    
+    console.log("Saving settings:", settingsToUpdate);
+    
+    updateSettingsMutation.mutate(settingsToUpdate);
   };
   
   const saveProfile = () => {

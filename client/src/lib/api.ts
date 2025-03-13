@@ -48,10 +48,18 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
 }
 
 export async function updateUserSettings(userId: number, data: Partial<UserSettings>): Promise<UserSettings> {
-  return await apiRequest<UserSettings>(`/api/user-settings/${userId}`, {
-    method: "PATCH",
-    body: data,
-  });
+  console.log("API: Updating user settings:", { userId, data });
+  try {
+    const result = await apiRequest<UserSettings>(`/api/user-settings/${userId}`, {
+      method: "PATCH",
+      body: data,
+    });
+    console.log("API: User settings update result:", result);
+    return result;
+  } catch (error) {
+    console.error("API: Failed to update user settings:", error);
+    throw error;
+  }
 }
 
 // User Profile
