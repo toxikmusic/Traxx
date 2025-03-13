@@ -32,7 +32,7 @@ export async function createPost(data: any): Promise<Post> {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(data),
+      body: data,
     });
     console.log("API: Post creation successful:", response);
     return response;
@@ -50,7 +50,7 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
 export async function updateUserSettings(userId: number, data: Partial<UserSettings>): Promise<UserSettings> {
   return await apiRequest<UserSettings>(`/api/user-settings/${userId}`, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: data,
   });
 }
 
@@ -62,7 +62,7 @@ export async function updateUserProfile(userId: number, data: {
 }): Promise<User> {
   return await apiRequest<User>(`/api/users/${userId}`, {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: data,
   });
 }
 
@@ -87,7 +87,7 @@ export async function getStreamsByUser(userId: number): Promise<Stream[]> {
 export async function createStream(data: Partial<Stream>): Promise<Stream> {
   return await apiRequest<Stream>("/api/streams", {
     method: "POST",
-    body: JSON.stringify(data)
+    body: data
   });
 }
 
