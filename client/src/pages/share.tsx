@@ -110,7 +110,9 @@ export default function SharePage() {
 
   const goBack = () => {
     if (contentData?.url) {
-      window.location.href = contentData.url;
+      // Ensure we're using proper URL handling for navigation
+      const url = new URL(contentData.url, window.location.origin);
+      navigate(url.pathname);
     } else {
       navigate('/');
     }
