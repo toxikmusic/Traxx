@@ -110,12 +110,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async incrementFollowerCount(userId: number): Promise<void> {
-    const user = await this.getUser(userId);
-    if (user) {
-      await db.update(users)
-        .set({ followerCount: (user.followerCount || 0) + 1 })
-        .where(eq(users.id, userId));
-    }
+    await db.update(users)
+      .set({
+        followerCount: sql`${users.followerCount} + 1`
+      })
+      .where(eq(users.id, userId));
   }
 
   async decrementFollowerCount(userId: number): Promise<void> {
@@ -360,29 +359,33 @@ export class DatabaseStorage implements IStorage {
   
   // Likes
   async createLike(like: InsertLike): Promise<Like> {
-    const result = await db.insert(likes)
-      .values({
-        ...like,
-        createdAt: new Date()
-      })
-      .returning();
-    
-    // Update like count on content
-    if (like.contentType === 'track') {
-      const track = await this.getTrack(like.contentId);
-      if (track) {
-        await db.update(tracks)
-          .set({ likeCount: (track.likeCount || 0) + 1 })
+    let result;
+    // Use a transaction to ensure atomic updates
+    await db.transaction(async (tx) => {
+      result = await tx.insert(likes)
+        .values({
+          ...like,
+          createdAt: new Date()
+        })
+        .returning();
+      
+      // Update like count on content
+      if (like.contentType === 'track') {
+        await tx.update(tracks)
+          .set({
+            likeCount: sql`${tracks.likeCount} + 1`
+          })
           .where(eq(tracks.id, like.contentId));
-      }
-    } else if (like.contentType === 'post') {
-      const post = await this.getPost(like.contentId);
-      if (post) {
-        await db.update(posts)
-          .set({ likeCount: (post.likeCount || 0) + 1 })
+      } else if (like.contentType === 'post') {
+        await tx.update(posts)
+          .set({
+            likeCount: sql`${posts.likeCount} + 1`
+          })
           .where(eq(posts.id, like.contentId));
       }
-    }
+    });
+    
+    return result![0];
     
     return result[0];
   }
@@ -533,12 +536,11 @@ export class DatabaseStorage implements IStorage {
   
   // Track play count
   async incrementTrackPlayCount(trackId: number): Promise<void> {
-    const track = await this.getTrack(trackId);
-    if (track) {
-      await db.update(tracks)
-        .set({ playCount: (track.playCount || 0) + 1 })
-        .where(eq(tracks.id, trackId));
-    }
+    await db.update(tracks)
+      .set({
+        playCount: sql`${tracks.playCount} + 1`
+      })
+      .where(eq(tracks.id, trackId));
   }
   
   // Creators
