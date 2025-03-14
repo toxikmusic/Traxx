@@ -1277,7 +1277,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  // Health and monitoring endpoints
+  // Search endpoint
+app.get("/api/search", async (req, res) => {
+  const query = req.query.q as string;
+  if (!query) {
+    return res.status(400).json({ message: "Query parameter required" });
+  }
+
+  const results = await Promise.all([
+    storage.searchTracks(query),
+    storage.searchUsers(query),
+    storage.searchStreams(query),
+    storage.searchPosts(query)
+  ]);
+
+  res.json([
+    ...results[0].map(r => ({ ...r, type: 'track' })),
+    ...results[1].map(r => ({ ...r, type: 'user' })),
+    ...results[2].map(r => ({ ...r, type: 'stream' })),
+    ...results[3].map(r => ({ ...r, type: 'post' }))
+  ]);
+});
+
+// Analytics endpoints
+app.post("/api/analytics/events", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const event = {
+    ...req.body,
+    userId: req.user.id,
+    timestamp: new Date()
+  };
+
+  await storage.saveAnalyticsEvent(event);
+  res.status(201).json({ success: true });
+});
+
+app.get("/api/analytics/dashboard/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const userId = parseInt(req.params.userId);
+  if (userId !== req.user.id) {
+    return res.status(403).json({ message: "Can only view own analytics" });
+  }
+
+  const analytics = await storage.getUserAnalytics(userId);
+  res.json(analytics);
+});
+
+// Notifications endpoint
+app.get("/api/notifications/:userId", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const userId = parseInt(req.params.userId);
+  if (userId !== req.user.id) {
+    return res.status(403).json({ message: "Can only view own notifications" });
+  }
+
+  const notifications = await storage.getUserNotifications(userId);
+  res.json(notifications);
+});
+
+// Health and monitoring endpoints
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
