@@ -109,7 +109,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
           <div className="flex justify-between">
             <div>
               <h3 className="font-medium line-clamp-1">{track.title}</h3>
-              <Link href={`/profile/${track.userId}`} className="text-xs text-muted-foreground hover:text-primary transition">
+              <Link href={`/profile/${track.artistName}`} className="text-xs text-muted-foreground hover:text-primary transition">
                 {track.artistName || "Unknown artist"}
               </Link>
               {track.genre && (
