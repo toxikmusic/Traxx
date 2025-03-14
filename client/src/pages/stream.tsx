@@ -765,7 +765,12 @@ export default function StreamPage() {
         </div>
       </main>
       
-      <AudioPlayer />
+      <div className="fixed bottom-16 left-0 right-0 bg-dark-200 border-t border-dark-100">
+  <div className="h-12 px-4">
+    <AudioVisualizer audioLevel={audioLevel} />
+  </div>
+  <AudioPlayer />
+</div>
       <MobileNavigation />
     </div>
   );
