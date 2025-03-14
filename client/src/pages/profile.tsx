@@ -22,7 +22,7 @@ export default function ProfilePage() {
   // Fetch user data
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: [`/api/users/by-username/${username}`],
-    enabled: !!username && username !== 'undefined',
+    enabled: !!username,
   });
 
   // Fetch user's streams
