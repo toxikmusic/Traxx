@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import ShareWidget from "@/components/social/ShareWidget";
 import LikeButton from "@/components/social/LikeButton"; // Added import
+import Link from "next/link"; // Added import
 
 interface TrackCardProps {
   track: Track;
@@ -38,6 +39,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
   };
 
   const handlePlayClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); //Added to prevent card click from playing
     if (isCurrentTrack) {
       togglePlayPause();
     } else {
@@ -75,7 +77,6 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
         "p-4 rounded-lg group hover:bg-muted transition cursor-pointer border",
         isCurrentTrack ? "border-primary bg-muted" : "border-border"
       )}
-      onClick={handlePlayClick}
     >
       <div className="flex space-x-3">
         <div className="relative flex-shrink-0">
@@ -90,7 +91,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               <Music className="h-8 w-8 text-muted-foreground" />
             </div>
           )}
-          <button className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded">
+          <button className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded" onClick={handlePlayClick}> {/*Added onClick*/}
             {isCurrentTrack && isPlaying ? (
               <Pause className="h-6 w-6 text-white" />
             ) : (
@@ -108,7 +109,9 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
           <div className="flex justify-between">
             <div>
               <h3 className="font-medium line-clamp-1">{track.title}</h3>
-              <p className="text-sm text-muted-foreground">{track.artistName}</p>
+              <Link href={`/profile/${track.username}`} className="text-xs text-muted-foreground hover:text-primary transition">
+                {track.artistName || "Unknown artist"}
+              </Link>
               {track.genre && (
                 <Badge variant="outline" className="mt-1 text-xs">
                   {track.genre}
