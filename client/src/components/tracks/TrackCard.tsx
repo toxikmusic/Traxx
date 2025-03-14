@@ -175,7 +175,12 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                   <Play className="h-3 w-3 mr-1" /> {playCount.toLocaleString()}
                 </span>
                 <span className="flex items-center">
-                  <Heart className="h-3 w-3 mr-1" /> {likeCount.toLocaleString()}
+                  <LikeButton 
+  contentId={track.id} 
+  contentType="track"
+  initialLikeCount={track.likeCount || 0}
+  size="sm"
+/>
                 </span>
               </div>
             </div>
