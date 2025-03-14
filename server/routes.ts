@@ -84,7 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ message: "Invalid user ID" });
     }
     
-    const user = await storage.getUser(id);
+    // Query user by numeric ID from database
+    const user = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.id, id)
+    });
     
     if (!user) {
       return res.status(404).json({ message: "User not found" });
