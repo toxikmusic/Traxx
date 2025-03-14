@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Heart, HeartOff } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { useState, useEffect } from "react";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
-import { cn } from '@/lib/utils';
+import { Heart } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/api";
 
 interface LikeButtonProps {
   contentId: number;
@@ -28,7 +29,7 @@ export default function LikeButton({
   const { toast } = useToast();
   const { user } = useAuth();
   const [likeCount, setLikeCount] = useState(initialLikeCount);
-  
+
   // Size mappings
   const sizeMap = {
     sm: {
@@ -49,26 +50,28 @@ export default function LikeButton({
   };
 
   // Check if the user has liked this content
-  const { data: isLikedData, isLoading } = useQuery({
+  const { data: isLikedData } = useQuery({
     queryKey: [`/api/likes/check`, { userId: user?.id, contentId, contentType }],
     queryFn: async () => {
       if (!user) return { isLiked: false };
       
       const res = await apiRequest(
         'GET', 
-        `/api/likes/check?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`,
-        null
+        `/api/likes/check?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`
       );
       return res.json();
     },
     enabled: !!user
   });
 
-  // Get the current like count
+  // Get like count
   const { data: likeCountData } = useQuery({
-    queryKey: [`/api/likes/count`, contentType, contentId],
+    queryKey: [`/api/likes/count`, { contentId, contentType }],
     queryFn: async () => {
-      const res = await apiRequest('GET', `/api/likes/count/${contentType}/${contentId}`, null);
+      const res = await apiRequest(
+        'GET',
+        `/api/likes/count/${contentType}/${contentId}`
+      );
       return res.json();
     }
   });
@@ -78,12 +81,12 @@ export default function LikeButton({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to like content');
       
-      const res = await apiRequest('POST', '/api/likes', null, {
+      const res = await apiRequest('POST', '/api/likes', {
         userId: user.id,
         contentId,
         contentType
       });
-      return res.json();
+      return res;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/likes/check`] });
@@ -104,7 +107,7 @@ export default function LikeButton({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to unlike content');
       
-      const res = await apiRequest('DELETE', '/api/likes', null, {
+      const res = await apiRequest('DELETE', '/api/likes', {
         userId: user.id,
         contentId,
         contentType
@@ -163,7 +166,7 @@ export default function LikeButton({
         className
       )}
       onClick={handleLikeClick}
-      disabled={isPending || isLoading}
+      disabled={isPending}
     >
       {isLiked ? (
         <Heart 
