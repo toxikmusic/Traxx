@@ -34,8 +34,7 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-                <img src="logo.png" alt="Traxx" className="h-6 mr-2">       
-                </img>
+                <img src="/logo.png" alt="Traxx" className="h-6 mr-2" />
             </Link>
           </div>
           
