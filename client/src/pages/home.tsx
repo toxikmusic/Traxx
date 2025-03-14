@@ -73,7 +73,7 @@ export default function Home() {
             {user && (
               <section className="mb-10 bg-dark-200 rounded-lg p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold">Your traxx</h2>
+                  <h2 className="text-2xl font-bold"></h2>
                   <div className="flex space-x-2">
                     <Link href="/upload-track">
                       <Button variant="outline" size="sm" className="flex items-center gap-2">

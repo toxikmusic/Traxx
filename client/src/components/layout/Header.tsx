@@ -29,12 +29,13 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-dark-200 border-b border-dark-100 py-3 px-4 fixed top-0 w-full z-50">
+      <header className="bg-dark-200 border-b border-dark-100 py-3 px-4 absolute top-0 w-full z-50">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-                <img src="/logo.png" alt="Traxx" className="h-6 mr-2" />
+                <img src="/logo.png" alt="Traxx" className="h-20 w-full" />
+            
             </Link>
           </div>
           
