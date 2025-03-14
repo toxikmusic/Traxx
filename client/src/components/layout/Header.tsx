@@ -34,9 +34,8 @@ export default function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent cursor-pointer">
-                Traxx
-              </h1>
+                <img src="logo.png" alt="Traxx" className="h-6 mr-2">       
+                </img>
             </Link>
           </div>
           
