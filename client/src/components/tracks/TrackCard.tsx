@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import ShareWidget from "@/components/social/ShareWidget";
+import LikeButton from "@/components/social/LikeButton"; // Added import
 
 interface TrackCardProps {
   track: Track;
@@ -28,7 +29,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
   const { currentTrack, isPlaying, playTrack, togglePlayPause, addToQueue, addTrackAndPlayNext } = useAudioPlayer();
   const isCurrentTrack = currentTrack?.id === track.id;
   const { toast } = useToast();
-  
+
   // Format duration from seconds to mm:ss
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -102,7 +103,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
             </Badge>
           )}
         </div>
-        
+
         <div className="flex-1">
           <div className="flex justify-between">
             <div>
@@ -176,11 +177,11 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                 </span>
                 <span className="flex items-center">
                   <LikeButton 
-  contentId={track.id} 
-  contentType="track"
-  initialLikeCount={track.likeCount || 0}
-  size="sm"
-/>
+                    contentId={track.id} 
+                    contentType="track"
+                    initialLikeCount={track.likeCount || 0}
+                    size="sm"
+                  />
                 </span>
               </div>
             </div>
