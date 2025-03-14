@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -6,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiRequest } from "@/lib/api";
+import { apiRequest } from "@/lib/queryClient";
 
 interface LikeButtonProps {
   contentId: number;
@@ -54,7 +53,7 @@ export default function LikeButton({
     queryKey: [`/api/likes/check`, { userId: user?.id, contentId, contentType }],
     queryFn: async () => {
       if (!user) return { isLiked: false };
-      
+
       const res = await apiRequest(
         'GET', 
         `/api/likes/check?userId=${user.id}&contentId=${contentId}&contentType=${contentType}`
@@ -80,7 +79,7 @@ export default function LikeButton({
   const createLikeMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to like content');
-      
+
       const res = await apiRequest('POST', '/api/likes', {
         userId: user.id,
         contentId,
@@ -106,7 +105,7 @@ export default function LikeButton({
   const removeLikeMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('You must be logged in to unlike content');
-      
+
       const res = await apiRequest('DELETE', '/api/likes', {
         userId: user.id,
         contentId,
@@ -147,7 +146,7 @@ export default function LikeButton({
       });
       return;
     }
-    
+
     if (isLiked) {
       removeLikeMutation.mutate();
     } else {
