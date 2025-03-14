@@ -19,7 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import ShareWidget from "@/components/social/ShareWidget";
 import LikeButton from "@/components/social/LikeButton"; // Added import
-import Link from "next/link"; // Added import
+import { Link } from "wouter"; // Added import
 
 interface TrackCardProps {
   track: Track;
