@@ -591,33 +591,6 @@ export default function GoLivePage() {
                             <Mic className="h-4 w-4 mr-2" />
                             Test Audio
                           </Button>
-                          {audioInitialized && !isStreaming && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={async () => {
-                                try {
-                                  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                                  toast({
-                                    title: "Camera test successful",
-                                    description: "Your camera is working properly",
-                                  });
-                                  // Clean up the stream after test
-                                  stream.getTracks().forEach(track => track.stop());
-                                } catch (error) {
-                                  toast({
-                                    title: "Camera test failed",
-                                    description: error instanceof Error ? error.message : "Could not access camera",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }}
-                              className="flex-1"
-                            >
-                              <Video className="h-4 w-4 mr-2" />
-                              Test Camera
-                            </Button>
-                          )}
                         )}
                       </div>
                     </div>
