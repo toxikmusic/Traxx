@@ -31,6 +31,11 @@ export class AudioVisualizer {
     this.ctx = canvas.getContext('2d')!;
     this.analyser = analyser;
     this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    // Add touch event handling
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // Prevent scrolling
+    }, { passive: false });
   }
 
   draw() {

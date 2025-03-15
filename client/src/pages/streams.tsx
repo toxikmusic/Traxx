@@ -19,10 +19,10 @@ export default function StreamsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-dark-300 text-white">
       <Header />
-      
+
       <main className="flex flex-1 pt-14 md:pt-16">
         <Sidebar />
-        
+
         <div className="flex-1 md:ml-60 pb-20 md:pb-24">
           <div className="max-w-7xl mx-auto px-4 py-6">
             <div className="flex items-center justify-between mb-6">
@@ -34,9 +34,9 @@ export default function StreamsPage() {
                 </Button>
               </Link>
             </div>
-            
+
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="flex flex-col">
                     <Skeleton className="w-full aspect-video rounded-lg" />
@@ -48,7 +48,7 @@ export default function StreamsPage() {
                 ))}
               </div>
             ) : streams && streams.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {streams.map((stream) => (
                   <StreamCard key={stream.id} stream={stream} />
                 ))}
@@ -70,7 +70,7 @@ export default function StreamsPage() {
           </div>
         </div>
       </main>
-      
+
       <AudioPlayer />
       <MobileNavigation />
     </div>

@@ -1,5 +1,6 @@
 
 import { useRef, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AudioVisualizerProps {
   audioLevel: number;
@@ -8,6 +9,7 @@ interface AudioVisualizerProps {
 
 export default function AudioVisualizer({ audioLevel, color = '#8B5CF6' }: AudioVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -23,27 +25,24 @@ export default function AudioVisualizer({ audioLevel, color = '#8B5CF6' }: Audio
     const normalizedLevel = Math.min(Math.max((audioLevel + 60) / 60, 0), 1);
     
     // Draw visualization
-    const barCount = 20;
+    const barCount = isMobile ? 12 : 20; // Fewer bars on mobile
     const barWidth = canvas.width / (barCount * 2);
     const height = canvas.height;
 
     ctx.fillStyle = color;
     
     for (let i = 0; i < barCount; i++) {
-      // Create randomized bar heights based on audio level
       const barHeight = height * normalizedLevel * (0.5 + Math.random() * 0.5);
-      
-      // Draw mirrored bars
       ctx.fillRect(i * barWidth * 2, height - barHeight, barWidth, barHeight);
       ctx.fillRect(canvas.width - (i * barWidth * 2) - barWidth, height - barHeight, barWidth, barHeight);
     }
-  }, [audioLevel, color]);
+  }, [audioLevel, color, isMobile]);
 
   return (
     <canvas
       ref={canvasRef}
       width={300}
-      height={50}
+      height={isMobile ? 40 : 50}
       className="w-full h-full"
     />
   );
