@@ -52,7 +52,7 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     console.log("Receiving file upload:", file.mimetype, file.originalname);
-    
+
     // Allow audio and images
     if (file.mimetype.startsWith('audio/') || file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -66,7 +66,7 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup auth routes with Passport
   setupAuth(app);
-  
+
   // Simple health check endpoint that doesn't require authentication
   app.get("/api/health-check", (req, res) => {
     res.json({
@@ -74,72 +74,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString()
     });
   });
-  
+
   // API routes
-  
+
   // Users
   app.get("/api/users/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     // Query user by numeric ID from database
     const user = await db.query.users.findFirst({
       where: (users, { eq }) => eq(users.id, id)
     });
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     // Don't expose password in API response
     const { password, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   });
-  
+
   app.get("/api/users/by-username/:username", async (req, res) => {
     const username = req.params.username;
     const user = await storage.getUserByUsername(username);
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     // Don't expose password in API response
     const { password, ...userWithoutPassword } = user;
     res.json(userWithoutPassword);
   });
-  
+
   // Update user profile
   app.patch("/api/users/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     const userId = parseInt(req.params.id);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     // Only allow users to update their own profile
     if (userId !== req.user.id) {
       return res.status(403).json({ message: "You can only update your own profile" });
     }
-    
+
     try {
       // Only allow specific fields to be updated via this endpoint
       const allowedFields = ['displayName', 'bio', 'profileImageUrl'];
       const updateData: Partial<InsertUser> = {};
-      
+
       for (const field of allowedFields) {
         if (field in req.body) {
           updateData[field as keyof InsertUser] = req.body[field];
         }
       }
-      
+
       const updatedUser = await storage.updateUser(userId, updateData);
-      
+
       // Don't expose password in API response
       const { password, ...userWithoutPassword } = updatedUser;
       res.json(userWithoutPassword);
@@ -150,12 +150,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error updating user profile" });
     }
   });
-  
+
   app.post("/api/users", async (req, res) => {
     try {
       const userData = insertUserSchema.parse(req.body);
       const user = await storage.createUser(userData);
-      
+
       // Don't expose password in API response
       const { password, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
@@ -166,38 +166,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating user" });
     }
   });
-  
+
   // Streams
   app.get("/api/streams/featured", async (req, res) => {
     const streams = await storage.getFeaturedStreams();
     res.json(streams);
   });
-  
+
   app.get("/api/streams/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid stream ID" });
     }
-    
+
     const stream = await storage.getStream(id);
-    
+
     if (!stream) {
       return res.status(404).json({ message: "Stream not found" });
     }
-    
+
     res.json(stream);
   });
-  
+
   app.get("/api/streams/user/:userId", async (req, res) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     const streams = await storage.getStreamsByUser(userId);
     res.json(streams);
   });
-  
+
   app.post("/api/streams", async (req, res) => {
     try {
       const streamData = insertStreamSchema.parse(req.body);
@@ -210,52 +210,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating stream" });
     }
   });
-  
+
   // Tracks
   app.get("/api/tracks/recent", async (req, res) => {
     const tracks = await storage.getRecentTracks();
     res.json(tracks);
   });
-  
+
   app.get("/api/tracks/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid track ID" });
     }
-    
+
     const track = await storage.getTrack(id);
-    
+
     if (!track) {
       return res.status(404).json({ message: "Track not found" });
     }
-    
+
     res.json(track);
   });
-  
+
   app.get("/api/tracks/user/:userId", async (req, res) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     const tracks = await storage.getTracksByUser(userId);
     res.json(tracks);
   });
-  
+
   // Upload endpoints for files
   app.post("/api/upload/audio", upload.single("audio"), (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No audio file provided" });
       }
-      
+
       // Return the file path for client to use when creating tracks
       const fileUrl = `/uploads/audio/${req.file.filename}`;
-      
+
       // Get audio duration (in a real app, we would use a library to get this)
       // For now we'll use a mock duration
       const duration = 180; // 3 minutes in seconds
-      
+
       res.status(201).json({ 
         url: fileUrl, 
         originalName: req.file.originalname,
@@ -267,16 +267,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error uploading audio file" });
     }
   });
-  
+
   app.post("/api/upload/image", upload.single("image"), (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No image file provided" });
       }
-      
+
       // Return the file path for client to use
       const fileUrl = `/uploads/images/${req.file.filename}`;
-      
+
       res.status(201).json({ 
         url: fileUrl, 
         originalName: req.file.originalname,
@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error uploading image file" });
     }
   });
-  
+
   // Track creation endpoint
   app.post("/api/tracks", async (req, res) => {
     try {
@@ -301,13 +301,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating track" });
     }
   });
-  
+
   // Genres
   app.get("/api/genres", async (req, res) => {
     const genres = await storage.getGenres();
     res.json(genres);
   });
-  
+
   // Follows
   app.get("/api/channels/followed", async (req, res) => {
     // In a real app, this would get followed channels for the current user
@@ -315,25 +315,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const users = await storage.getAllUsers();
     res.json(users);
   });
-  
+
   app.post("/api/follows", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       // Use authenticated user ID
       const followData = {
         ...req.body,
         followerId: req.user.id
       };
-      
+
       const validatedData = insertFollowSchema.parse(followData);
       const follow = await storage.createFollow(validatedData);
-      
+
       // Increment follower count
       await storage.incrementFollowerCount(validatedData.followedId);
-      
+
       res.status(201).json(follow);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -342,56 +342,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating follow" });
     }
   });
-  
+
   app.get("/api/follows/check", async (req, res) => {
     try {
       const { followerId, followedId } = req.query;
-      
+
       if (!followerId || !followedId) {
         return res.status(400).json({ message: "Missing required parameters" });
       }
-      
+
       const isFollowing = await storage.isFollowing(
         parseInt(followerId as string), 
         parseInt(followedId as string)
       );
-      
+
       res.status(200).json({ isFollowing });
     } catch (error) {
       res.status(500).json({ message: "Error checking follow status" });
     }
   });
-  
+
   app.get("/api/follows/followers/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      
+
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
       }
-      
+
       const followers = await storage.getFollowers(userId);
       res.status(200).json(followers);
     } catch (error) {
       res.status(500).json({ message: "Error getting followers" });
     }
   });
-  
+
   app.get("/api/follows/following/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
-      
+
       if (isNaN(userId)) {
         return res.status(400).json({ message: "Invalid user ID" });
       }
-      
+
       const following = await storage.getFollowing(userId);
       res.status(200).json(following);
     } catch (error) {
       res.status(500).json({ message: "Error getting following users" });
     }
   });
-  
+
   app.delete("/api/follows/:userId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -401,35 +401,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (isNaN(followedId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     // Get current user ID from auth
     const followerId = req.user.id;
-    
+
     try {
       await storage.removeFollow(followerId, followedId);
-      
+
       // Decrement follower count
       await storage.decrementFollowerCount(followedId);
-      
+
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Error removing follow" });
     }
   });
-  
+
   // Likes endpoints
   app.post("/api/likes", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       // Use authenticated user ID
       const likeData = {
         ...req.body,
         userId: req.user.id
       };
-      
+
       const validatedData = insertLikeSchema.parse(likeData);
       const like = await storage.createLike(validatedData);
       res.status(201).json(like);
@@ -440,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating like" });
     }
   });
-  
+
   app.delete("/api/likes", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -449,38 +449,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { contentId, contentType } = req.body;
       const userId = req.user.id;
-      
+
       if (!contentId || !contentType) {
         return res.status(400).json({ message: "Missing required fields" });
       }
-      
+
       await storage.removeLike(userId, contentId, contentType);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Error removing like" });
     }
   });
-  
+
   app.get("/api/likes/check", async (req, res) => {
     try {
       const { userId, contentId, contentType } = req.query;
-      
+
       if (!userId || !contentId || !contentType) {
         return res.status(400).json({ message: "Missing required fields" });
       }
-      
+
       const isLiked = await storage.isLiked(
         parseInt(userId as string), 
         parseInt(contentId as string), 
         contentType as string
       );
-      
+
       res.status(200).json({ isLiked });
     } catch (error) {
       res.status(500).json({ message: "Error checking like status" });
     }
   });
-  
+
   app.get("/api/likes/count/:contentType/:contentId", async (req, res) => {
     try {
       const { contentType, contentId } = req.params;
@@ -490,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error getting like count" });
     }
   });
-  
+
   app.get("/api/likes/user/:userId/:contentType", async (req, res) => {
     try {
       const { userId, contentType } = req.params;
@@ -500,32 +500,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error getting user likes" });
     }
   });
-  
+
   // Comments endpoints
   app.post("/api/comments", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       // Use authenticated user ID
       const commentData = {
         ...req.body,
         userId: req.user.id
       };
-      
+
       const validatedData = insertCommentSchema.parse(commentData);
       const comment = await storage.createComment(validatedData);
-      
+
       // Fetch user data to include in response for immediate display
       const user = await storage.getUser(req.user.id);
-      
+
       // Add username to response for easy display
       const responseData = {
         ...comment,
         username: user?.displayName || user?.username || 'Unknown User'
       };
-      
+
       res.status(201).json(responseData);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -534,75 +534,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating comment" });
     }
   });
-  
+
   app.put("/api/comments/:commentId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       const commentId = parseInt(req.params.commentId);
       const { text } = req.body;
-      
+
       if (isNaN(commentId) || !text) {
         return res.status(400).json({ message: "Invalid comment data" });
       }
-      
+
       // Get the comment to verify ownership
       const comment = await storage.getComment(commentId);
-      
+
       if (!comment) {
         return res.status(404).json({ message: "Comment not found" });
       }
-      
+
       // Verify the user owns this comment
       if (comment.userId !== req.user.id) {
         return res.status(403).json({ message: "You can only edit your own comments" });
       }
-      
+
       const updatedComment = await storage.updateComment(commentId, text);
-      
+
       if (!updatedComment) {
         return res.status(404).json({ message: "Comment not found" });
       }
-      
+
       res.status(200).json(updatedComment);
     } catch (error) {
       res.status(500).json({ message: "Error updating comment" });
     }
   });
-  
+
   app.delete("/api/comments/:commentId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       const commentId = parseInt(req.params.commentId);
-      
+
       if (isNaN(commentId)) {
         return res.status(400).json({ message: "Invalid comment ID" });
       }
-      
+
       // Get the comment to verify ownership
       const comment = await storage.getComment(commentId);
-      
+
       if (!comment) {
         return res.status(404).json({ message: "Comment not found" });
       }
-      
+
       // Verify the user owns this comment
       if (comment.userId !== req.user.id) {
         return res.status(403).json({ message: "You can only delete your own comments" });
       }
-      
+
       await storage.deleteComment(commentId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Error deleting comment" });
     }
   });
-  
+
   app.get("/api/comments/:contentType/:contentId", async (req, res) => {
     try {
       const { contentType, contentId } = req.params;
@@ -612,38 +612,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error getting comments" });
     }
   });
-  
+
   app.get("/api/comments/replies/:commentId", async (req, res) => {
     try {
       const commentId = parseInt(req.params.commentId);
-      
+
       if (isNaN(commentId)) {
         return res.status(400).json({ message: "Invalid comment ID" });
       }
-      
+
       const replies = await storage.getReplies(commentId);
       res.status(200).json(replies);
     } catch (error) {
       res.status(500).json({ message: "Error getting comment replies" });
     }
   });
-  
+
   // User Settings
   app.get("/api/user-settings/:userId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     // Only allow users to access their own settings
     if (userId !== req.user.id) {
       return res.status(403).json({ message: "You can only access your own settings" });
     }
-    
+
     const settings = await storage.getUserSettings(userId);
     if (!settings) {
       // If no settings exist, create default ones
@@ -655,22 +655,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       return res.json(defaultSettings);
     }
-    
+
     res.json(settings);
   });
-  
+
   app.post("/api/user-settings", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       // Ensure user can only create their own settings
       const settingsData = {
         ...req.body,
         userId: req.user.id
       };
-      
+
       const validatedData = insertUserSettingsSchema.parse(settingsData);
       const settings = await storage.createUserSettings(validatedData);
       res.status(201).json(settings);
@@ -681,44 +681,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating user settings" });
     }
   });
-  
+
   app.patch("/api/user-settings/:userId", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     // Only allow users to update their own settings
     if (userId !== req.user.id) {
       return res.status(403).json({ message: "You can only update your own settings" });
     }
-    
+
     try {
       console.log("Received settings update:", {
         userId: userId,
         body: req.body,
         contentType: req.headers['content-type']
       });
-      
+
       // Extract only the fields we want to update
       const allowedFields = ['uiColor', 'enableAutoplay', 'defaultSortType'];
       const settingsData: Record<string, any> = {};
-      
+
       for (const field of allowedFields) {
         if (field in req.body) {
           settingsData[field] = req.body[field];
         }
       }
-      
+
       console.log("Filtered settings data:", settingsData);
-      
+
       const settings = await storage.updateUserSettings(userId, settingsData);
       console.log("Updated settings:", settings);
-      
+
       res.json(settings);
     } catch (error) {
       console.error("Error updating user settings:", error);
@@ -728,49 +728,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error updating user settings" });
     }
   });
-  
+
   // Posts
   app.get("/api/posts/recent", async (req, res) => {
     const posts = await storage.getRecentPosts();
     res.json(posts);
   });
-  
+
   app.get("/api/posts/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid post ID" });
     }
-    
+
     const post = await storage.getPost(id);
-    
+
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
-    
+
     res.json(post);
   });
-  
+
   app.get("/api/posts/user/:userId", async (req, res) => {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
       return res.status(400).json({ message: "Invalid user ID" });
     }
-    
+
     const posts = await storage.getPostsByUser(userId);
     res.json(posts);
   });
-  
+
   app.post("/api/posts", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     try {
       console.log("Raw post request body:", JSON.stringify(req.body));
-      
+
       // Prepare post data
       const rawData = req.body;
-      
+
       // Build a clean post object with proper defaults
       const postData: {
         userId: number;
@@ -786,28 +786,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         postType: rawData.postType === PostType.IMAGE ? PostType.IMAGE : PostType.TEXT,
         tags: []
       };
-      
+
       // Handle imageUrl properly
       if (typeof rawData.imageUrl === 'string' && rawData.imageUrl) {
         postData.imageUrl = rawData.imageUrl;
       }
-      
+
       // Handle tags properly
       if (Array.isArray(rawData.tags)) {
         postData.tags = rawData.tags.filter((tag: any) => typeof tag === 'string');
       }
-      
+
       // Simple direct validations (avoiding schema for now as debug)
       if (!postData.title) {
         return res.status(400).json({ message: "Title is required" });
       }
-      
+
       if (!postData.content) {
         return res.status(400).json({ message: "Content is required" });
       }
-      
+
       console.log("Final post data for storage:", JSON.stringify(postData));
-      
+
       const post = await storage.createPost(postData);
       res.status(201).json(post);
     } catch (error) {
@@ -818,7 +818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Creators
   app.get("/api/creators/recommended", async (req, res) => {
     const creators = await storage.getRecommendedCreators();
@@ -826,13 +826,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-  
+
   // Set up WebSocket servers
   const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-  
+
   // Set up separate WebSocket server for audio streaming
   const audioStreamingWss = new WebSocketServer({ server: httpServer, path: '/audio' });
-  
+
   // Types for WebSocket messages
   type ChatMessage = {
     id: number;
@@ -841,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     message: string;
     timestamp: Date;
   };
-  
+
   type ClientMessage = {
     type: 'chat' | 'join' | 'leave';
     streamId: number;
@@ -849,7 +849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     username?: string;
     message?: string;
   };
-  
+
   type ServerMessage = {
     type: 'chat_message' | 'user_joined' | 'user_left' | 'stream_status' | 'viewer_count' | 'chat_history' | 'audio_level';
     streamId: number;
@@ -863,39 +863,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     audioLevel?: number; // Audio level in dB
     level?: number;      // For dedicated audio_level messages
   };
-  
+
   // Keep track of active streams and their connections
   const streamConnections = new Map<number, Set<WebSocket>>();
   const streamMessages = new Map<number, ChatMessage[]>();
-  
+
   wss.on('connection', (ws, req) => {
     log('New WebSocket connection established', 'websocket');
-    
+
     // Parse URL to get parameters
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const streamId = parseInt(url.searchParams.get('streamId') || '0');
     const userId = parseInt(url.searchParams.get('userId') || '0');
     const username = url.searchParams.get('username') || 'Anonymous';
-    
+
     if (streamId <= 0) {
       ws.close(1008, 'Invalid stream ID');
       return;
     }
-    
+
     // Add this client to the stream's connections
     if (!streamConnections.has(streamId)) {
       streamConnections.set(streamId, new Set());
       streamMessages.set(streamId, []);
     }
-    
+
     const connections = streamConnections.get(streamId);
     if (connections) {
       connections.add(ws);
-      
+
       // Update viewer count
       const viewerCount = connections.size;
       storage.updateStreamViewerCount(streamId, viewerCount);
-      
+
       // Send existing chat history
       const messages = streamMessages.get(streamId) || [];
       ws.send(JSON.stringify({
@@ -903,7 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         streamId,
         messages
       }));
-      
+
       // Send current viewer count to all clients
       connections.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -915,19 +915,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }));
         }
       });
-      
+
       // Broadcast user joined message
       if (userId > 0) {
         const joinMessage: ChatMessage = {
           id: Date.now(),
           userId,
           username,
-          message: `${username} joined the stream`,
-          timestamp: new Date()
+          message: `${username} joined the stream`,          timestamp: new Date()
         };
-        
+
         messages.push(joinMessage);
-        
+
         connections.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
@@ -941,16 +940,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     }
-    
+
     // Handle incoming messages
     ws.on('message', (message) => {
       try {
         const data: ClientMessage = JSON.parse(message.toString());
         const connections = streamConnections.get(data.streamId);
         const messages = streamMessages.get(data.streamId) || [];
-        
+
         if (!connections) return;
-        
+
         if (data.type === 'chat' && data.message) {
           // Create chat message
           const chatMessage: ChatMessage = {
@@ -960,15 +959,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: data.message,
             timestamp: new Date()
           };
-          
+
           // Add to message history
           messages.push(chatMessage);
-          
+
           // Limit history to prevent memory issues
           if (messages.length > 100) {
             messages.splice(0, messages.length - 100);
           }
-          
+
           // Broadcast to all clients
           connections.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
@@ -984,19 +983,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         log(`Error processing WebSocket message: ${error}`, 'websocket');
       }
     });
-    
+
     // Handle disconnection
     ws.on('close', () => {
       const connections = streamConnections.get(streamId);
-      
+
       if (connections) {
         // Remove this client
         connections.delete(ws);
-        
+
         // Update viewer count
         const viewerCount = connections.size;
         storage.updateStreamViewerCount(streamId, viewerCount);
-        
+
         // Broadcast updated viewer count
         connections.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
@@ -1008,7 +1007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }));
           }
         });
-        
+
         // Broadcast user left message
         if (userId > 0) {
           connections.forEach(client => {
@@ -1023,7 +1022,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
         }
-        
+
         // Clean up empty stream connections
         if (connections.size === 0) {
           streamConnections.delete(streamId);
@@ -1032,26 +1031,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
-  
+
   // Add endpoint to end a stream
   // Map to track audio streaming connections for each stream
   const audioStreamConnections = new Map<number, { broadcaster: WebSocket | null, listeners: Set<WebSocket> }>();
-  
+
   // Handle audio streaming WebSocket connections
   audioStreamingWss.on('connection', (ws, req) => {
     log('New audio streaming WebSocket connection established', 'websocket');
-    
+
+    ws.on('error', (error) => {
+      log(`WebSocket error: ${error}`, 'websocket');
+      ws.close(1011, 'Internal Server Error');
+    });
+
+    // Keep connection alive
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping();
+      }
+    }, 30000);
+
+    ws.on('close', () => {
+      clearInterval(pingInterval);
+    });
+
     // Parse URL to get stream ID and determine if this is a broadcaster or listener
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const pathParts = url.pathname.split('/');
     const streamId = parseInt(pathParts[1] || '0');
     const isBroadcaster = url.searchParams.get('role') === 'broadcaster';
-    
+
     if (streamId <= 0) {
       ws.close(1008, 'Invalid stream ID');
       return;
     }
-    
+
     // Create connection entry for this stream if it doesn't exist
     if (!audioStreamConnections.has(streamId)) {
       audioStreamConnections.set(streamId, {
@@ -1059,9 +1074,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         listeners: new Set()
       });
     }
-    
+
     const audioConnections = audioStreamConnections.get(streamId)!;
-    
+
     // Set up connection based on role
     if (isBroadcaster) {
       // If there's already a broadcaster, reject this connection
@@ -1070,22 +1085,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ws.close(1008, 'Stream already has a broadcaster');
         return;
       }
-      
+
       log(`Broadcaster connected for stream ${streamId}`, 'websocket');
       audioConnections.broadcaster = ws;
-      
+
       // Update stream status to live
       storage.updateStream(streamId, { isLive: true }).catch(err => {
         log(`Error updating stream status: ${err}`, 'websocket');
       });
-      
+
       // Handle broadcaster messages (audio data or control messages)
       ws.on('message', (data) => {
         // Check if this is a control message (string) or audio data (binary)
         if (typeof data === 'string') {
           try {
             const controlMessage = JSON.parse(data);
-            
+
             // Handle audio level updates
             if (controlMessage.type === 'audio_level' && typeof controlMessage.level === 'number') {
               // Broadcast audio level to all listeners
@@ -1102,7 +1117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 }
               });
-              
+
               // Also broadcast to chat clients for display in UI
               // Get chat clients from the separate chat WebSocket map (not the audio streamConnections)
               const chatClients = streamConnections.get(streamId); // This is the chat WebSocket connections
@@ -1142,17 +1157,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       });
-      
+
       // Handle broadcaster disconnection
       ws.on('close', () => {
         log(`Broadcaster disconnected for stream ${streamId}`, 'websocket');
         audioConnections.broadcaster = null;
-        
+
         // Update stream status to not live
         storage.updateStream(streamId, { isLive: false }).catch(err => {
           log(`Error updating stream status: ${err}`, 'websocket');
         });
-        
+
         // Notify all listeners that the stream ended
         audioConnections.listeners.forEach((listener: WebSocket) => {
           if (listener.readyState === WebSocket.OPEN) {
@@ -1164,7 +1179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         });
-        
+
         // Clean up if no more connections
         if (audioConnections.listeners.size === 0) {
           audioStreamConnections.delete(streamId);
@@ -1174,12 +1189,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This is a listener
       log(`Listener connected for stream ${streamId}`, 'websocket');
       audioConnections.listeners.add(ws);
-      
+
       // Handle listener disconnection
       ws.on('close', () => {
         log(`Listener disconnected from stream ${streamId}`, 'websocket');
         audioConnections.listeners.delete(ws);
-        
+
         // Clean up if no more connections and no broadcaster
         if (audioConnections.listeners.size === 0 && 
             (!audioConnections.broadcaster || 
@@ -1189,26 +1204,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-  
+
   // Add REST endpoint for stream status check
   app.get("/api/streams/:id/status", async (req, res) => {
     const streamId = parseInt(req.params.id);
     if (isNaN(streamId)) {
       return res.status(400).json({ message: "Invalid stream ID" });
     }
-    
+
     const stream = await storage.getStream(streamId);
     if (!stream) {
       return res.status(404).json({ message: "Stream not found" });
     }
-    
+
     const audioConnections = audioStreamConnections.get(streamId);
     const isLive = stream.isLive && 
                   audioConnections?.broadcaster && 
                   audioConnections.broadcaster.readyState === WebSocket.OPEN;
-    
+
     const viewerCount = audioConnections?.listeners.size || 0;
-    
+
     res.json({
       id: streamId,
       isLive,
@@ -1216,30 +1231,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       startTime: stream.startedAt
     });
   });
-  
+
   app.post("/api/streams/:id/end", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    
+
     const streamId = parseInt(req.params.id);
     if (isNaN(streamId)) {
       return res.status(400).json({ message: "Invalid stream ID" });
     }
-    
+
     const stream = await storage.getStream(streamId);
     if (!stream) {
       return res.status(404).json({ message: "Stream not found" });
     }
-    
+
     // Only allow the stream owner to end it
     if (stream.userId !== req.user.id) {
       return res.status(403).json({ message: "You can only end your own streams" });
     }
-    
+
     // Update stream state to not live
     await storage.updateStream(streamId, { isLive: false });
-    
+
     // Notify all connected chat clients
     const connections = streamConnections.get(streamId);
     if (connections) {
@@ -1254,100 +1269,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     }
-    
+
     // End audio stream if active
     const audioConnections = audioStreamConnections.get(streamId);
     if (audioConnections && audioConnections.broadcaster) {
       if (audioConnections.broadcaster.readyState === WebSocket.OPEN) {
         audioConnections.broadcaster.close(1000, 'Stream ended by user');
       }
-      
+
       // Close all listener connections
       audioConnections.listeners.forEach((listener: WebSocket) => {
         if (listener.readyState === WebSocket.OPEN) {
           listener.close(1000, 'Stream ended by user');
         }
       });
-      
+
       // Clean up resources
       audioStreamConnections.delete(streamId);
     }
-    
+
     // Clean up chat resources
     streamConnections.delete(streamId);
     streamMessages.delete(streamId);
-    
+
     res.json({ success: true });
   });
 
   // Search endpoint
-app.get("/api/search", async (req, res) => {
-  const query = req.query.q as string;
-  if (!query) {
-    return res.status(400).json({ message: "Query parameter required" });
-  }
+  app.get("/api/search", async (req, res) => {
+    const query = req.query.q as string;
+    if (!query) {
+      return res.status(400).json({ message: "Query parameter required" });
+    }
 
-  const results = await Promise.all([
-    storage.searchTracks(query),
-    storage.searchUsers(query),
-    storage.searchStreams(query),
-    storage.searchPosts(query)
-  ]);
+    const results = await Promise.all([
+      storage.searchTracks(query),
+      storage.searchUsers(query),
+      storage.searchStreams(query),
+      storage.searchPosts(query)
+    ]);
 
-  res.json([
-    ...results[0].map(r => ({ ...r, type: 'track' })),
-    ...results[1].map(r => ({ ...r, type: 'user' })),
-    ...results[2].map(r => ({ ...r, type: 'stream' })),
-    ...results[3].map(r => ({ ...r, type: 'post' }))
-  ]);
-});
+    res.json([
+      ...results[0].map(r => ({ ...r, type: 'track' })),
+      ...results[1].map(r => ({ ...r, type: 'user' })),
+      ...results[2].map(r => ({ ...r, type: 'stream' })),
+      ...results[3].map(r => ({ ...r, type: 'post' }))
+    ]);
+  });
 
-// Analytics endpoints
-app.post("/api/analytics/events", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+  // Analytics endpoints
+  app.post("/api/analytics/events", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-  const event = {
-    ...req.body,
-    userId: req.user.id,
-    timestamp: new Date()
-  };
+    const event = {
+      ...req.body,
+      userId: req.user.id,
+      timestamp: new Date()
+    };
 
-  await storage.saveAnalyticsEvent(event);
-  res.status(201).json({ success: true });
-});
+    await storage.saveAnalyticsEvent(event);
+    res.status(201).json({ success: true });
+  });
 
-app.get("/api/analytics/dashboard/:userId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+  app.get("/api/analytics/dashboard/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-  const userId = parseInt(req.params.userId);
-  if (userId !== req.user.id) {
-    return res.status(403).json({ message: "Can only view own analytics" });
-  }
+    const userId = parseInt(req.params.userId);
+    if (userId !== req.user.id) {
+      return res.status(403).json({ message: "Can only view own analytics" });
+    }
 
-  const analytics = await storage.getUserAnalytics(userId);
-  res.json(analytics);
-});
+    const analytics = await storage.getUserAnalytics(userId);
+    res.json(analytics);
+  });
 
-// Notifications endpoint
-app.get("/api/notifications/:userId", async (req, res) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+  // Notifications endpoint
+  app.get("/api/notifications/:userId", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-  const userId = parseInt(req.params.userId);
-  if (userId !== req.user.id) {
-    return res.status(403).json({ message: "Can only view own notifications" });
-  }
+    const userId = parseInt(req.params.userId);
+    if (userId !== req.user.id) {
+      return res.status(403).json({ message: "Can only view own notifications" });
+    }
 
-  const notifications = await storage.getUserNotifications(userId);
-  res.json(notifications);
-});
+    const notifications = await storage.getUserNotifications(userId);
+    res.json(notifications);
+  });
 
-// Health and monitoring endpoints
+  // Health and monitoring endpoints
   app.get("/api/health", (req, res) => {
     res.json({
       status: "ok",
@@ -1363,13 +1378,13 @@ app.get("/api/notifications/:userId", async (req, res) => {
     // Check Cloudflare API connection
     const cloudflareConnected = await checkCloudflareService();
     const cloudflareStatus = cloudflareConnected ? "healthy" : "failing";
-    
+
     // Get memory usage for monitoring
     const memoryUsage = process.memoryUsage();
-    
+
     // Format memory values to MB for readability
     const formatMemory = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
-    
+
     res.json({
       status: cloudflareStatus === "failing" ? "degraded" : "healthy",
       timestamp: new Date().toISOString(),
