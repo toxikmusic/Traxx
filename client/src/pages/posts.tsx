@@ -36,8 +36,8 @@ export default function PostsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">
+    <div className="container mx-auto py-4 md:py-6 px-4 md:px-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 bg-gradient-to-r from-purple-400 to-pink-600 text-transparent bg-clip-text">
         Community Posts
       </h1>
       

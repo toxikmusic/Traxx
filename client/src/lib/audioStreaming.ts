@@ -28,9 +28,14 @@ export class AudioVisualizer {
 
   constructor(canvas: HTMLCanvasElement, analyser: AnalyserNode) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d')!;
+    this.ctx = canvas.getContext('2d', { alpha: false })!; // Optimize for mobile GPU
     this.analyser = analyser;
     this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+    this.lastDrawTime = 0;
+    
+    // Better touch handling for mobile
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     
     // Add touch event handling
     canvas.addEventListener('touchstart', (e) => {
@@ -39,6 +44,14 @@ export class AudioVisualizer {
   }
 
   draw() {
+    // Throttle drawing on mobile for better performance
+    const now = performance.now();
+    if (now - this.lastDrawTime < 1000 / 30) { // 30fps on mobile
+      requestAnimationFrame(() => this.draw());
+      return;
+    }
+    this.lastDrawTime = now;
+
     const { width, height } = this.canvas;
     this.ctx.clearRect(0, 0, width, height);
     this.analyser.getByteFrequencyData(this.dataArray);
