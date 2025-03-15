@@ -534,7 +534,7 @@ export class AudioStreamingService {
       }
     }
   }
-  startVisualization(canvas: HTMLCanvasElement) {
+  setupVisualization(canvas: HTMLCanvasElement) {
     if (this.analyserNode) {
       this.visualizer = new AudioVisualizer(canvas, this.analyserNode);
       this.visualizer.draw();
