@@ -591,7 +591,7 @@ export default function GoLivePage() {
                             <Mic className="h-4 w-4 mr-2" />
                             Test Audio
                           </Button>
-                          {!isStreaming && (
+                          {audioInitialized && !isStreaming && (
                             <Button 
                               variant="outline" 
                               size="sm"
