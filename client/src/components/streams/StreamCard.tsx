@@ -1,8 +1,3 @@
-
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
-
 import { Link } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -66,51 +61,13 @@ export default function StreamCard({ stream }: StreamCardProps) {
           </div>
           
           <div className="flex items-start">
-            <div className="flex items-center gap-2">
-              <ShareWidget
-                title={stream.title}
-                description={`Check out this ${stream.isLive ? 'live stream' : 'stream'} on BeatStream!`}
-                url={`/stream/${stream.id}`}
-                type="stream"
-                compact={true}
-              />
-              {/* Only show delete button for user's own streams */}
-              {stream.userId === 1 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={async (e) => {
-                    e.preventDefault(); // Prevent navigation
-                    if (confirm('Are you sure you want to delete this stream?')) {
-                      try {
-                        const response = await fetch(`/api/streams/${stream.id}`, {
-                          method: 'DELETE',
-                          credentials: 'include',
-                        });
-                        if (response.ok) {
-                          // Refresh the page to show updated stream list
-                          window.location.reload();
-                        } else {
-                          toast({
-                            title: "Error",
-                            description: "Failed to delete stream",
-                            variant: "destructive",
-                          });
-                        }
-                      } catch (error) {
-                        toast({
-                          title: "Error",
-                          description: "Failed to delete stream",
-                          variant: "destructive",
-                        });
-                      }
-                    }
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            <ShareWidget
+              title={stream.title}
+              description={`Check out this ${stream.isLive ? 'live stream' : 'stream'} on BeatStream!`}
+              url={`/stream/${stream.id}`}
+              type="stream"
+              compact={true}
+            />
           </div>
         </div>
       </div>

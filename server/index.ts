@@ -48,29 +48,24 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Register API routes
-  await registerRoutes(app);
+  const server = await registerRoutes(app);
 
-  // Serve static files in production
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  }
-
-  // Handle client-side routing
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "client", "index.html"));
-  });
-
-  // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
+
     res.status(status).json({ message });
     throw err;
   });
 
-  const server = http.createServer(app);
-
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
 
   // Serve the app on configured port or fallback to 5001
   // this serves both the API and the client
