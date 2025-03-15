@@ -561,8 +561,8 @@ export default function GoLivePage() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => activeStreamId && startStreaming(activeStreamId)}
-                            disabled={!audioInitialized || !activeStreamId}
+                            onClick={testAudio}
+                            disabled={isStreaming}
                             className="flex-1"
                           >
                             <Mic className="h-4 w-4 mr-2" />
