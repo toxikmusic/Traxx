@@ -17,17 +17,39 @@ export interface StreamStatus {
   viewerCount: number;
   startTime?: Date;
   peakViewerCount: number;
-  audioLevel?: number; // Current audio level in dB
+  audioLevel?: number;
 }
 
-// Default audio settings for good quality music streaming
-const defaultSettings: AudioStreamSettings = {
-  sampleRate: 48000,
-  echoCancellation: false, // Turn off for music streaming
-  noiseSuppression: false, // Turn off for music streaming
-  autoGainControl: false,  // Turn off for music streaming
-  channelCount: 2 // Stereo
-};
+export class AudioVisualizer {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private analyser: AnalyserNode;
+  private dataArray: Uint8Array;
+
+  constructor(canvas: HTMLCanvasElement, analyser: AnalyserNode) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d')!;
+    this.analyser = analyser;
+    this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+  }
+
+  draw() {
+    const { width, height } = this.canvas;
+    this.ctx.clearRect(0, 0, width, height);
+    this.analyser.getByteFrequencyData(this.dataArray);
+
+    const barWidth = width / this.dataArray.length;
+    let x = 0;
+
+    this.ctx.fillStyle = '#4CAF50';
+    for (let i = 0; i < this.dataArray.length; i++) {
+      const barHeight = (this.dataArray[i] / 255) * height;
+      this.ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+      x += barWidth + 1;
+    }
+    requestAnimationFrame(() => this.draw());
+  }
+}
 
 export class AudioStreamingService {
   private stream: MediaStream | null = null;
@@ -41,13 +63,15 @@ export class AudioStreamingService {
     isLive: false,
     viewerCount: 0,
     peakViewerCount: 0,
-    audioLevel: -60 // Initial level (silent)
+    audioLevel: -60 
   };
   private audioProcessorNode: AudioWorkletNode | null = null;
   private frequencyData: Uint8Array | null = null;
   private connectionCheckInterval: NodeJS.Timeout | null = null;
   private onStatusChangeCallbacks: ((status: StreamStatus) => void)[] = [];
   private onVisualizeCallbacks: ((data: Uint8Array) => void)[] = [];
+  private visualizer: AudioVisualizer | null = null;
+
 
   constructor() {
     // Create Audio Context when needed (due to browser autoplay policies)
@@ -58,8 +82,8 @@ export class AudioStreamingService {
    */
   async initialize(settings: AudioStreamSettings = {}): Promise<boolean> {
     try {
-      // Merge default and custom settings
-      const streamSettings = { ...defaultSettings, ...settings };
+      // Merge default and custom settings (Default settings are missing from edited code, added from original)
+      const streamSettings = { sampleRate: 48000, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2, ...settings };
 
       // Request microphone/audio input access
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -87,9 +111,6 @@ export class AudioStreamingService {
       this.sourceNode.connect(this.analyserNode);
       this.analyserNode.connect(this.gainNode);
 
-      // Start visualization loop
-      this.startVisualization();
-
       return true;
     } catch (error) {
       console.error("Error initializing audio streaming:", error);
@@ -103,13 +124,11 @@ export class AudioStreamingService {
   async startStreaming(streamId: number, streamKey: string): Promise<boolean> {
     try {
       if (!this.stream || !this.audioContext) {
-        // Try to initialize if not already done
         const initialized = await this.initialize({
           echoCancellation: false,
           noiseSuppression: false,
           autoGainControl: false
         });
-        
         if (!initialized) {
           console.error("Failed to initialize audio stream");
           return false;
@@ -121,7 +140,6 @@ export class AudioStreamingService {
         await this.audioContext.resume();
       }
 
-    try {
       // Close any existing connection
       if (this.socket) {
         this.socket.close();
@@ -132,7 +150,6 @@ export class AudioStreamingService {
 
       // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      // Connect to our dedicated audio WebSocket with proper format
       const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${streamKey}`;
 
       console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
@@ -270,7 +287,7 @@ export class AudioStreamingService {
     // Close WebSocket connection
     if (this.socket) {
       if (this.socket.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify({ 
+        this.socket.send(JSON.stringify({
           type: 'end_stream',
           streamId: this.streamStatus.streamId
         }));
@@ -372,7 +389,7 @@ export class AudioStreamingService {
 
       // Create audio processor node
       this.audioProcessorNode = new AudioWorkletNode(
-        this.audioContext, 
+        this.audioContext,
         'audio-processor'
       );
 
@@ -483,9 +500,9 @@ export class AudioStreamingService {
     });
 
     // Send audio level update to the server if we're streaming as broadcaster
-    if (this.socket && this.socket.readyState === WebSocket.OPEN && 
-        this.streamStatus.isLive && this.streamStatus.streamId && 
-        this.streamStatus.audioLevel !== undefined) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN &&
+      this.streamStatus.isLive && this.streamStatus.streamId &&
+      this.streamStatus.audioLevel !== undefined) {
       try {
         // Send as a control message (string) instead of binary audio data
         this.socket.send(JSON.stringify({
@@ -496,6 +513,12 @@ export class AudioStreamingService {
       } catch (error) {
         console.error('Error sending audio level to server:', error);
       }
+    }
+  }
+  startVisualization(canvas: HTMLCanvasElement) {
+    if (this.analyserNode) {
+      this.visualizer = new AudioVisualizer(canvas, this.analyserNode);
+      this.visualizer.draw();
     }
   }
 }
