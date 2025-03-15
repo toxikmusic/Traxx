@@ -594,7 +594,10 @@ export default function GoLivePage() {
                           {audioInitialized && !isStreaming && (
                             <Button 
                               variant="outline" 
-                              size="sm"
+                              size="sm">
+                              Start Stream
+                            </Button>
+                          )}
                               onClick={async () => {
                                 try {
                                   const stream = await navigator.mediaDevices.getUserMedia({ video: true });
