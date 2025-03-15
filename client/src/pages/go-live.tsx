@@ -172,7 +172,27 @@ export default function GoLivePage() {
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0];
     setVolume(newVolume);
-    audioStreamingService.setVolume(newVolume);
+    if (audioInitialized) {
+      audioStreamingService.setVolume(newVolume);
+    }
+  };
+
+  const testAudio = async () => {
+    if (!audioInitialized) {
+      const result = await audioStreamingService.initialize({
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      });
+      
+      if (result) {
+        setAudioInitialized(true);
+        toast({
+          title: "Audio initialized",
+          description: "Your microphone is ready for testing.",
+        });
+      }
+    }
   };
   
   // Toggle mute

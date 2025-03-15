@@ -101,10 +101,25 @@ export class AudioStreamingService {
    * Start streaming to the server
    */
   async startStreaming(streamId: number, streamKey: string): Promise<boolean> {
-    if (!this.stream || !this.audioContext) {
-      console.error("Audio stream not initialized. Call initialize() first.");
-      return false;
-    }
+    try {
+      if (!this.stream || !this.audioContext) {
+        // Try to initialize if not already done
+        const initialized = await this.initialize({
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
+        });
+        
+        if (!initialized) {
+          console.error("Failed to initialize audio stream");
+          return false;
+        }
+      }
+
+      // Ensure audio context is running
+      if (this.audioContext.state === 'suspended') {
+        await this.audioContext.resume();
+      }
 
     try {
       // Close any existing connection
