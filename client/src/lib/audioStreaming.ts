@@ -25,6 +25,7 @@ export class AudioVisualizer {
   private ctx: CanvasRenderingContext2D;
   private analyser: AnalyserNode;
   private dataArray: Uint8Array;
+  private lastDrawTime: number = 0;
 
   constructor(canvas: HTMLCanvasElement, analyser: AnalyserNode) {
     this.canvas = canvas;
@@ -32,11 +33,11 @@ export class AudioVisualizer {
     this.analyser = analyser;
     this.dataArray = new Uint8Array(analyser.frequencyBinCount);
     this.lastDrawTime = 0;
-    
+
     // Better touch handling for mobile
     canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
     canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-    
+
     // Add touch event handling
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault(); // Prevent scrolling
@@ -537,6 +538,23 @@ export class AudioStreamingService {
     if (this.analyserNode) {
       this.visualizer = new AudioVisualizer(canvas, this.analyserNode);
       this.visualizer.draw();
+    }
+  }
+
+  async initializeStream() {
+    return this.initialize();
+  }
+
+  async testAudio() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Media devices not supported");
+      }
+      await this.initializeStream();
+      console.log("Audio test successful");
+    } catch (error) {
+      console.error("Error testing audio:", error instanceof Error ? error.message : "Unknown error");
+      throw error;
     }
   }
 }

@@ -57,10 +57,10 @@ export default function GoLivePage() {
   const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [activeStreamId, setActiveStreamId] = useState<number | null>(null);
-  
+
   // For demo, a fixed userId (in real app would come from auth)
   const userId = user?.id || 1;
-  
+
   // Initialize audio streaming when component mounts
   useEffect(() => {
     const initializeAudio = async () => {
@@ -70,21 +70,21 @@ export default function GoLivePage() {
           noiseSuppression: false,
           autoGainControl: false
         });
-        
+
         if (result) {
           setAudioInitialized(true);
           audioStreamingService.setVolume(volume);
-          
+
           // Register status change listener
           audioStreamingService.onStatusChange((status) => {
             setStreamStatus(status);
           });
-          
+
           // Register visualization data listener
           audioStreamingService.onVisualize((data) => {
             setFrequencyData(data);
           });
-          
+
           toast({
             title: "Audio initialized",
             description: "Your microphone is ready for streaming.",
@@ -107,7 +107,7 @@ export default function GoLivePage() {
     };
 
     initializeAudio();
-    
+
     // Clean up resources when component unmounts
     return () => {
       if (isStreaming) {
@@ -133,41 +133,41 @@ export default function GoLivePage() {
   // Draw audio visualization on canvas
   useEffect(() => {
     if (!canvasRef.current || !frequencyData) return;
-    
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Set visualization style
     const barWidth = canvas.width / frequencyData.length;
     const barGap = 2;
     const barWidthWithGap = barWidth - barGap;
-    
+
     // Create gradient
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
     gradient.addColorStop(0, '#9333ea'); // Purple from theme
     gradient.addColorStop(0.5, '#a855f7');
     gradient.addColorStop(1, '#c084fc');
-    
+
     // Draw bars
     ctx.fillStyle = gradient;
-    
+
     for (let i = 0; i < frequencyData.length; i++) {
       // Normalize value to canvas height (frequencyData values are 0-255)
       const barHeight = (frequencyData[i] / 255) * canvas.height;
       const x = i * barWidth;
       const y = canvas.height - barHeight;
-      
+
       // Draw rounded bars
       ctx.beginPath();
       ctx.roundRect(x, y, barWidthWithGap, barHeight, 4);
       ctx.fill();
     }
   }, [frequencyData]);
-  
+
   // Handle volume change
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0];
@@ -185,16 +185,16 @@ export default function GoLivePage() {
           noiseSuppression: false,
           autoGainControl: false
         });
-        
+
         if (result) {
           setAudioInitialized(true);
-          
+
           // Start audio capture and visualization
           if (canvasRef.current) {
             audioStreamingService.startCapture();
             audioStreamingService.startVisualization(canvasRef.current);
           }
-          
+
           toast({
             title: "Audio initialized",
             description: "Your microphone is ready for testing.",
@@ -205,16 +205,19 @@ export default function GoLivePage() {
         audioStreamingService.startCapture();
         audioStreamingService.startVisualization(canvasRef.current);
       }
-    } catch (error) {
-      console.error("Error testing audio:", error);
       toast({
-        title: "Audio error",
-        description: "Failed to test audio. Please check your microphone.",
-        variant: "destructive"
+        title: "Audio test successful",
+        description: "Your microphone is working correctly",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Audio test failed",
+        description: error instanceof Error ? error.message : "Could not access microphone",
       });
     }
   };
-  
+
   // Toggle mute
   const toggleMute = () => {
     if (isMuted) {
@@ -224,7 +227,7 @@ export default function GoLivePage() {
     }
     setIsMuted(!isMuted);
   };
-  
+
   // Start streaming function
   const startStreaming = async (streamId: number) => {
     if (!audioInitialized) {
@@ -235,14 +238,14 @@ export default function GoLivePage() {
       });
       return;
     }
-    
+
     try {
       // Generate a new stream key for demo
       const newStreamKey = Math.random().toString(36).substring(2, 15);
       setStreamKey(newStreamKey);
-      
+
       const result = await audioStreamingService.startStreaming(streamId, newStreamKey);
-      
+
       if (result) {
         setIsStreaming(true);
         setActiveStreamId(streamId);
@@ -266,7 +269,7 @@ export default function GoLivePage() {
       });
     }
   };
-  
+
   // Stop streaming function
   const stopStreaming = () => {
     audioStreamingService.stopStreaming();
@@ -283,7 +286,7 @@ export default function GoLivePage() {
     mutationFn: (data: StreamFormValues) => {
       // Process tags if provided
       const tagArray = data.tags ? data.tags.split(",").map(tag => tag.trim()) : [];
-      
+
       // Create stream data object
       const streamData: Partial<Stream> = {
         title: data.title,
@@ -296,7 +299,7 @@ export default function GoLivePage() {
         viewerCount: 0,
         startedAt: new Date(),
       };
-      
+
       return createStream(streamData);
     },
     onSuccess: (stream) => {
@@ -305,10 +308,10 @@ export default function GoLivePage() {
         title: 'Stream created!',
         description: 'Your live stream has been created. You can now go live.',
       });
-      
+
       // Start streaming with the newly created stream ID
       startStreaming(stream.id);
-      
+
       // Navigate to the stream page after a brief delay
       setTimeout(() => {
         navigate(`/stream/${stream.id}`);
@@ -337,7 +340,7 @@ export default function GoLivePage() {
           <div className="container max-w-3xl mx-auto pt-6">
             <h1 className="text-3xl font-bold mb-2">Go Live</h1>
             <p className="text-muted-foreground mb-6">Set up your live stream and connect with your audience</p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <Card className="md:col-span-3">
                 <CardHeader>
@@ -487,7 +490,7 @@ export default function GoLivePage() {
                               <p className="text-white/70 text-sm">Speak or play audio to see visualization</p>
                             </div>
                           )}
-                          
+
                           {/* Stream Status Indicators */}
                           <div className="absolute top-4 right-4 flex gap-2">
                             {isStreaming && (
@@ -510,7 +513,7 @@ export default function GoLivePage() {
                         </>
                       )}
                     </div>
-                    
+
                     {/* Audio Controls */}
                     <div className="mt-4 space-y-3">
                       {/* Audio Level Meter */}
@@ -542,7 +545,7 @@ export default function GoLivePage() {
                           />
                         </div>
                       </div>
-                    
+
                       <div className="flex items-center gap-2">
                         <Button 
                           variant="outline" 
@@ -566,7 +569,7 @@ export default function GoLivePage() {
                           className="flex-1"
                         />
                       </div>
-                      
+
                       <div className="flex gap-2">
                         {isStreaming ? (
                           <Button 
@@ -628,7 +631,7 @@ export default function GoLivePage() {
                         </Button>
                       </div>
                     </div>
-                    
+
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Important</AlertTitle>
@@ -636,7 +639,7 @@ export default function GoLivePage() {
                         Never share your stream key with anyone. It grants access to broadcast on your channel.
                       </AlertDescription>
                     </Alert>
-                    
+
                     <div>
                       <h3 className="text-sm font-medium">Required Software</h3>
                       <p className="text-sm text-muted-foreground mt-1">
