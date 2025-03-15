@@ -178,20 +178,40 @@ export default function GoLivePage() {
   };
 
   const testAudio = async () => {
-    if (!audioInitialized) {
-      const result = await audioStreamingService.initialize({
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false
-      });
-      
-      if (result) {
-        setAudioInitialized(true);
-        toast({
-          title: "Audio initialized",
-          description: "Your microphone is ready for testing.",
+    try {
+      if (!audioInitialized) {
+        const result = await audioStreamingService.initialize({
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false
         });
+        
+        if (result) {
+          setAudioInitialized(true);
+          
+          // Start audio capture and visualization
+          if (canvasRef.current) {
+            audioStreamingService.startCapture();
+            audioStreamingService.startVisualization(canvasRef.current);
+          }
+          
+          toast({
+            title: "Audio initialized",
+            description: "Your microphone is ready for testing.",
+          });
+        }
+      } else if (canvasRef.current) {
+        // If already initialized, just start capture and visualization
+        audioStreamingService.startCapture();
+        audioStreamingService.startVisualization(canvasRef.current);
       }
+    } catch (error) {
+      console.error("Error testing audio:", error);
+      toast({
+        title: "Audio error",
+        description: "Failed to test audio. Please check your microphone.",
+        variant: "destructive"
+      });
     }
   };
   
