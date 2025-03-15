@@ -199,8 +199,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/streams", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     try {
-      const streamData = insertStreamSchema.parse(req.body);
+      // Check if user already has an active stream
+      const userStreams = await storage.getStreamsByUser(req.user.id);
+      const activeStream = userStreams.find(stream => stream.isLive);
+      
+      if (activeStream) {
+        return res.status(400).json({ 
+          message: "You already have an active stream. Please end your current stream before starting a new one." 
+        });
+      }
+
+      const streamData = insertStreamSchema.parse({
+        ...req.body,
+        userId: req.user.id
+      });
       const stream = await storage.createStream(streamData);
       res.status(201).json(stream);
     } catch (error) {
@@ -1230,6 +1247,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       viewerCount,
       startTime: stream.startedAt
     });
+  });
+
+  app.delete("/api/streams/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const streamId = parseInt(req.params.id);
+    if (isNaN(streamId)) {
+      return res.status(400).json({ message: "Invalid stream ID" });
+    }
+
+    const stream = await storage.getStream(streamId);
+    if (!stream) {
+      return res.status(404).json({ message: "Stream not found" });
+    }
+
+    // Only allow the stream owner to delete it
+    if (stream.userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only delete your own streams" });
+    }
+
+    // Delete the stream
+    await storage.deleteStream(streamId);
+
+    // Clean up WebSocket connections
+    const connections = streamConnections.get(streamId);
+    if (connections) {
+      connections.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.close(1000, 'Stream deleted by owner');
+        }
+      });
+      streamConnections.delete(streamId);
+      streamMessages.delete(streamId);
+    }
+
+    // Clean up audio connections
+    const audioConnections = audioStreamConnections.get(streamId);
+    if (audioConnections) {
+      if (audioConnections.broadcaster?.readyState === WebSocket.OPEN) {
+        audioConnections.broadcaster.close(1000, 'Stream deleted by owner');
+      }
+      audioConnections.listeners.forEach((listener: WebSocket) => {
+        if (listener.readyState === WebSocket.OPEN) {
+          listener.close(1000, 'Stream deleted by owner');
+        }
+      });
+      audioStreamConnections.delete(streamId);
+    }
+
+    res.status(204).send();
   });
 
   app.post("/api/streams/:id/end", async (req, res) => {
