@@ -26,32 +26,7 @@ import Dashboard from "@/pages/dashboard";
 import HealthTest from "@/pages/health-test";
 import SharePage from "@/pages/share";
 
-function Router() {
-  return (
-    <Switch>
-      <ProtectedRoute path="/" component={Home} />
-      <ProtectedRoute path="/streams" component={Streams} />
-      <ProtectedRoute path="/stream/:id" component={Stream} />
-      <ProtectedRoute path="/profile/:username" component={Profile} />
-      <ProtectedRoute path="/posts" component={Posts} />
-      <ProtectedRoute path="/posts/new" component={CreatePost} />
-      <ProtectedRoute path="/settings" component={Settings} />
-      <ProtectedRoute path="/discover" component={Discover} />
-      <ProtectedRoute path="/library" component={Library} />
-      <ProtectedRoute path="/go-live" component={GoLive} />
-      <ProtectedRoute path="/upload-track" component={UploadTrack} />
-      <ProtectedRoute path="/dashboard" component={Dashboard} />
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/auth-test" component={AuthTest} />
-      <Route path="/health-test" component={HealthTest} />
-      <Route path="/upload-public" component={UploadTrack} />
-      <Route path="/share" component={SharePage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -87,5 +62,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;
