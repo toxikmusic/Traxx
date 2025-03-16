@@ -1325,8 +1325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "You can only end your own streams" });
     }
 
-    // Update stream state to not live
-    await storage.updateStream(streamId, { isLive: false });
+    // Update stream state to not live and set endedAt timestamp
+    await storage.updateStream(streamId, { isLive: false, endedAt: new Date() });
 
     // Notify all connected chat clients
     const connections = streamConnections.get(streamId);
