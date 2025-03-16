@@ -101,13 +101,25 @@ export class AudioStreamingService {
    */
   async initialize(settings: AudioStreamSettings = {}): Promise<boolean> {
     try {
-      // Merge default and custom settings (Default settings are missing from edited code, added from original)
-      const streamSettings = { sampleRate: 48000, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2, ...settings };
+      // Merge default and custom settings
+      const streamSettings = { 
+        sampleRate: 48000, 
+        echoCancellation: false, 
+        noiseSuppression: false, 
+        autoGainControl: false, 
+        channelCount: 2, 
+        ...settings 
+      };
 
-      // Request microphone/audio input access
+      console.log("Requesting media permissions...");
+      
+      // Request both audio and video access for streaming
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: streamSettings
+        audio: streamSettings,
+        video: true // Request video access as well for streaming
       });
+      
+      console.log("Media permissions granted:", this.stream.getTracks().map(t => t.kind));
 
       // Create audio context with desired sample rate
       this.audioContext = new AudioContext({
@@ -130,11 +142,79 @@ export class AudioStreamingService {
       this.sourceNode.connect(this.analyserNode);
       this.analyserNode.connect(this.gainNode);
 
+      // Start visualization process
+      this.setupVisualizationLoop();
+
       return true;
     } catch (error) {
       console.error("Error initializing audio streaming:", error);
       return false;
     }
+  }
+  
+  /**
+   * Start capturing audio/video for preview
+   */
+  startCapture(): boolean {
+    try {
+      if (!this.stream) {
+        console.error("No media stream available");
+        return false;
+      }
+      
+      // Enable all tracks in the stream
+      this.stream.getTracks().forEach(track => {
+        track.enabled = true;
+      });
+      
+      console.log("Media capture started with tracks:", 
+        this.stream.getTracks().map(t => `${t.kind}:${t.label}:${t.enabled}`));
+      
+      return true;
+    } catch (error) {
+      console.error("Error starting media capture:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Initialize visualization with a canvas element
+   */
+  startVisualization(canvas?: HTMLCanvasElement): void {
+    if (canvas && this.analyserNode) {
+      this.visualizer = new AudioVisualizer(canvas, this.analyserNode);
+      this.visualizer.draw();
+    } else if (this.analyserNode && this.frequencyData) {
+      // Start the internal visualization loop if no canvas provided
+      this.setupInternalVisualization();
+    }
+  }
+  
+
+  
+  /**
+   * Set up the visualization loop without calling startVisualization
+   */
+  private setupVisualizationLoop(): void {
+    if (!this.analyserNode || !this.frequencyData) return;
+
+    const updateVisualization = () => {
+      if (!this.analyserNode || !this.frequencyData) return;
+
+      // Get frequency data
+      this.analyserNode.getByteFrequencyData(this.frequencyData);
+
+      // Notify visualize callbacks
+      this.onVisualizeCallbacks.forEach(callback => {
+        callback(this.frequencyData!);
+      });
+
+      // Continue loop
+      requestAnimationFrame(updateVisualization);
+    };
+
+    // Start the loop
+    updateVisualization();
   }
 
   /**
@@ -173,7 +253,7 @@ export class AudioStreamingService {
 
       // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=broadcaster&streamKey=${streamKey}`;
+      const wsUrl = `${protocol}//${window.location.host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
 
       console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
       this.socket = new WebSocket(wsUrl);
@@ -488,30 +568,7 @@ export class AudioStreamingService {
     processorNode.connect(this.audioContext.destination);
   }
 
-  /**
-   * Private: Start visualization loop
-   */
-  private startVisualization(): void {
-    if (!this.analyserNode || !this.frequencyData) return;
 
-    const updateVisualization = () => {
-      if (!this.analyserNode || !this.frequencyData) return;
-
-      // Get frequency data
-      this.analyserNode.getByteFrequencyData(this.frequencyData);
-
-      // Notify visualize callbacks
-      this.onVisualizeCallbacks.forEach(callback => {
-        callback(this.frequencyData!);
-      });
-
-      // Continue loop
-      requestAnimationFrame(updateVisualization);
-    };
-
-    // Start the loop
-    updateVisualization();
-  }
 
   /**
    * Private: Notify all status change callbacks
