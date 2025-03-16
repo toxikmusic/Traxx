@@ -99,6 +99,12 @@ export async function createStream(data: Partial<Stream>): Promise<Stream> {
   });
 }
 
+export async function endStream(streamId: number): Promise<{ success: boolean }> {
+  return await apiRequest<{ success: boolean }>(`/api/streams/${streamId}`, {
+    method: "DELETE"
+  });
+}
+
 // Creators
 export async function getRecommendedCreators(): Promise<User[]> {
   return await apiRequest<User[]>("/api/creators/recommended");

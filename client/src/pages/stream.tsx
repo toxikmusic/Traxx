@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Slider } from "@/components/ui/slider";
 import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
+import AudioVisualizer from "@/components/audio/AudioVisualizer";
 
 type ChatMessage = {
   id: number;
@@ -27,7 +28,12 @@ type ChatMessage = {
 };
 
 export default function StreamPage() {
-  const [, params] = useRoute("/stream/:id");
+  // Check both singular and plural stream routes
+  const [matchSingular, paramsSingular] = useRoute("/stream/:id");
+  const [matchPlural, paramsPlural] = useRoute("/streams/:id");
+  
+  // Use params from whichever route matched
+  const params = matchSingular ? paramsSingular : paramsPlural;
   const streamId = params?.id ? parseInt(params.id) : undefined;
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -767,7 +773,7 @@ export default function StreamPage() {
       
       <div className="fixed bottom-16 left-0 right-0 bg-dark-200 border-t border-dark-100">
   <div className="h-12 px-4">
-    <AudioVisualizer audioLevel={audioLevel} />
+    <AudioVisualizer audioLevel={typeof streamStatus.audioLevel === 'number' ? streamStatus.audioLevel : -60} />
   </div>
   <AudioPlayer />
 </div>

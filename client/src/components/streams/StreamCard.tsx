@@ -1,17 +1,60 @@
 import { Link } from "wouter";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Stream } from "@shared/schema";
 import ShareWidget from "@/components/social/ShareWidget";
+import { useAuth } from "@/hooks/use-auth";
+import { endStream } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { X, AlertCircle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StreamCardProps {
   stream: Stream;
 }
 
 export default function StreamCard({ stream }: StreamCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showEndDialog, setShowEndDialog] = useState(false);
+  const isCurrentUserStream = user?.id === stream.userId;
+  
+  const endStreamMutation = useMutation({
+    mutationFn: () => endStream(stream.id),
+    onSuccess: () => {
+      toast({
+        title: "Stream ended",
+        description: "Your live stream has been ended successfully.",
+      });
+      // Invalidate streams queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["/api/streams/featured"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/streams/user/${user?.id}`] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to end stream",
+        description: "There was an error ending your stream. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error ending stream:", error);
+    },
+  });
   return (
     <div className="bg-dark-200 rounded-lg overflow-hidden group">
-      <Link href={`/stream/${stream.id}`}>
+      <Link href={`/streams/${stream.id}`}>
         <div className="relative cursor-pointer">
           <img 
             src={stream.thumbnailUrl || ''}
@@ -42,7 +85,7 @@ export default function StreamCard({ stream }: StreamCardProps) {
             </Link>
             
             <div>
-              <Link href={`/stream/${stream.id}`}>
+              <Link href={`/streams/${stream.id}`}>
                 <h3 className="font-medium cursor-pointer hover:text-primary">{stream.title}</h3>
               </Link>
               
@@ -64,13 +107,59 @@ export default function StreamCard({ stream }: StreamCardProps) {
             <ShareWidget
               title={stream.title}
               description={`Check out this ${stream.isLive ? 'live stream' : 'stream'} on BeatStream!`}
-              url={`/stream/${stream.id}`}
+              url={`/streams/${stream.id}`}
               type="stream"
               compact={true}
             />
           </div>
         </div>
       </div>
+      
+      {/* Add End Stream button for user's own live streams */}
+      {isCurrentUserStream && stream.isLive && (
+        <>
+          <div className="px-3 pb-3 pt-1 flex justify-end">
+            <Button 
+              variant="destructive" 
+              size="sm"
+              className="flex items-center gap-1"
+              onClick={() => setShowEndDialog(true)}
+            >
+              <X size={14} />
+              End Stream
+            </Button>
+          </div>
+          
+          {/* Confirmation Dialog */}
+          <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  End Live Stream
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to end this live stream? This action cannot be undone 
+                  and all current viewers will be disconnected.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={endStreamMutation.isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    endStreamMutation.mutate();
+                  }}
+                  disabled={endStreamMutation.isPending}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  {endStreamMutation.isPending ? 'Ending...' : 'End Stream'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </div>
   );
 }

@@ -155,8 +155,12 @@ export class AudioStreamingService {
       }
 
       // Ensure audio context is running
-      if (this.audioContext.state === 'suspended') {
-        await this.audioContext.resume();
+      if (this.audioContext) {
+        if (this.audioContext.state === 'suspended') {
+          await this.audioContext.resume();
+        }
+      } else {
+        console.warn("Audio context is not initialized");
       }
 
       // Close any existing connection
@@ -534,18 +538,28 @@ export class AudioStreamingService {
       }
     }
   }
-  startVisualization(canvas: HTMLCanvasElement) {
+  
+  /**
+   * Public: Initialize visualization with canvas element
+   */
+  public initializeVisualization(canvas: HTMLCanvasElement): void {
     if (this.analyserNode) {
       this.visualizer = new AudioVisualizer(canvas, this.analyserNode);
       this.visualizer.draw();
     }
   }
 
-  async initializeStream() {
+  /**
+   * Initialize audio stream
+   */
+  public async initializeStream(): Promise<boolean> {
     return this.initialize();
   }
 
-  async testAudio() {
+  /**
+   * Test audio functionality
+   */
+  public async testAudio(): Promise<void> {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported");

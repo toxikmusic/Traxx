@@ -31,6 +31,7 @@ function Router() {
       <ProtectedRoute path="/" component={Home} />
       <ProtectedRoute path="/streams" component={Streams} />
       <ProtectedRoute path="/stream/:id" component={Stream} />
+      <ProtectedRoute path="/streams/:id" component={Stream} />
       <ProtectedRoute path="/profile/:username" component={Profile} />
       <ProtectedRoute path="/posts" component={Posts} />
       <ProtectedRoute path="/posts/new" component={CreatePost} />
