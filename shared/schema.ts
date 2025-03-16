@@ -51,6 +51,7 @@ export const streams = pgTable("streams", {
   isLive: boolean("is_live").default(false),
   viewerCount: integer("viewer_count").default(0),
   startedAt: timestamp("started_at").defaultNow(),
+  endedAt: timestamp("ended_at"),
   category: text("category"),
   tags: text("tags").array()
 });

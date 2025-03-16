@@ -70,13 +70,17 @@ app.use((req, res, next) => {
   // Serve the app on configured port or fallback to 5000
   // this serves both the API and the client
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  
+  // Always use 0.0.0.0 to listen on all interfaces
+  server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
-    // Log additional information about the server
-    log(`Access URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    log(`Server environment: ${app.get('env')}`);
+    
+    // Check if running in Replit
+    if (process.env.REPL_ID) {
+      log(`Running in Replit environment`);
+      log(`REPL_SLUG: ${process.env.REPL_SLUG || 'unknown'}`);
+      log(`REPL_OWNER: ${process.env.REPL_OWNER || 'unknown'}`);
+    }
   });
 })();

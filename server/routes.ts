@@ -1269,8 +1269,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "You can only delete your own streams" });
     }
 
-    // Delete the stream
-    await storage.deleteStream(streamId);
+    // Mark the stream as ended instead of deleting it
+    await storage.updateStream(streamId, { 
+      isLive: false,
+      endedAt: new Date(),
+      viewerCount: 0
+    });
 
     // Clean up WebSocket connections
     const connections = streamConnections.get(streamId);

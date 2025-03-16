@@ -75,6 +75,18 @@ export async function apiRequest<T>(
     }
   }
   
+  // Replit environment URL handling
+  // Make sure we're using relative URLs for API endpoints
+  if (url.startsWith('/api/')) {
+    // Using relative URL which is correct
+    console.log(`Using relative API URL: ${url}`);
+  } else if (url.includes('/api/')) {
+    // Extract the path part from an absolute URL
+    const urlObject = new URL(url);
+    url = urlObject.pathname + urlObject.search;
+    console.log(`Converted to relative API URL: ${url}`);
+  }
+  
   // Final fetch options
   fetchOptions = {
     method,
@@ -110,13 +122,18 @@ export async function apiRequest<T>(
     headers: fetchOptions.headers
   });
   
-  const res = await fetch(url, fetchOptions);
-
-  console.log(`API ${method} request to ${url}, status: ${res.status}`);
-  console.log(`Response headers:`, Object.fromEntries(res.headers.entries()));
-  
-  await throwIfResNotOk(res);
-  return await res.json();
+  try {
+    const res = await fetch(url, fetchOptions);
+    
+    console.log(`API ${method} request to ${url}, status: ${res.status}`);
+    console.log(`Response headers:`, Object.fromEntries(res.headers.entries()));
+    
+    await throwIfResNotOk(res);
+    return await res.json();
+  } catch (error) {
+    console.error(`API Error for ${url}:`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -125,7 +142,19 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = queryKey[0] as string;
+    let url = queryKey[0] as string;
+    
+    // Replit environment URL handling
+    // Make sure we're using relative URLs for API endpoints
+    if (url.startsWith('/api/')) {
+      // Using relative URL which is correct
+      console.log(`Using relative API URL: ${url}`);
+    } else if (url.includes('/api/')) {
+      // Extract the path part from an absolute URL
+      const urlObject = new URL(url);
+      url = urlObject.pathname + urlObject.search;
+      console.log(`Converted to relative API URL: ${url}`);
+    }
     
     try {
       console.log(`Query fetch to ${url}`);

@@ -101,6 +101,19 @@ export interface IStorage {
   
   // Creators
   getRecommendedCreators(): Promise<User[]>;
+  
+  // Search functionality
+  searchTracks(query: string): Promise<Track[]>;
+  searchUsers(query: string): Promise<User[]>;
+  searchStreams(query: string): Promise<Stream[]>;
+  searchPosts(query: string): Promise<Post[]>;
+  
+  // Analytics
+  saveAnalyticsEvent(event: any): Promise<void>;
+  getUserAnalytics(userId: number): Promise<any>;
+  
+  // Notifications
+  getUserNotifications(userId: number): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -335,7 +348,12 @@ export class MemStorage implements IStorage {
       id,
       isLive: true,
       viewerCount: 0,
-      startedAt: new Date()
+      startedAt: new Date(),
+      endedAt: null,
+      description: insertStream.description || null,
+      thumbnailUrl: insertStream.thumbnailUrl || null,
+      category: insertStream.category || null,
+      tags: insertStream.tags || null
     };
     this.streams.set(id, stream);
     
@@ -639,6 +657,77 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values())
       .sort((a, b) => b.followerCount - a.followerCount)
       .slice(0, 10);
+  }
+  
+  // Search functionality
+  async searchTracks(query: string): Promise<Track[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return Array.from(this.tracks.values())
+      .filter(track => 
+        track.title.toLowerCase().includes(lowercaseQuery) ||
+        track.artistName.toLowerCase().includes(lowercaseQuery) ||
+        (track.genre && track.genre.toLowerCase().includes(lowercaseQuery))
+      )
+      .slice(0, 10);
+  }
+  
+  async searchUsers(query: string): Promise<User[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return Array.from(this.users.values())
+      .filter(user => 
+        user.username.toLowerCase().includes(lowercaseQuery) ||
+        (user.displayName && user.displayName.toLowerCase().includes(lowercaseQuery)) ||
+        (user.bio && user.bio.toLowerCase().includes(lowercaseQuery))
+      )
+      .slice(0, 10);
+  }
+  
+  async searchStreams(query: string): Promise<Stream[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return Array.from(this.streams.values())
+      .filter(stream => 
+        stream.title.toLowerCase().includes(lowercaseQuery) ||
+        (stream.description && stream.description.toLowerCase().includes(lowercaseQuery)) ||
+        (stream.category && stream.category.toLowerCase().includes(lowercaseQuery))
+      )
+      .slice(0, 10);
+  }
+  
+  async searchPosts(query: string): Promise<Post[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return Array.from(this.posts.values())
+      .filter(post => 
+        post.title.toLowerCase().includes(lowercaseQuery) ||
+        post.content.toLowerCase().includes(lowercaseQuery) ||
+        (post.tags && post.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery)))
+      )
+      .slice(0, 10);
+  }
+  
+  // Analytics
+  async saveAnalyticsEvent(event: any): Promise<void> {
+    // In-memory implementation - in a real app this would save to a database
+    console.log('Analytics event:', event);
+  }
+  
+  async getUserAnalytics(userId: number): Promise<any> {
+    // Simplified analytics data
+    return {
+      playCount: Array.from(this.tracks.values())
+        .filter(track => track.userId === userId)
+        .reduce((sum, track) => sum + track.playCount, 0),
+      totalLikes: Array.from(this.likes.values())
+        .filter(like => 
+          like.contentType === 'track' && 
+          this.tracks.get(like.contentId)?.userId === userId
+        ).length
+    };
+  }
+  
+  // Notifications
+  async getUserNotifications(userId: number): Promise<any[]> {
+    // Simplified notifications implementation
+    return [];
   }
   
   // Seed data (empty for production)

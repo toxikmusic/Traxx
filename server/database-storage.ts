@@ -549,4 +549,86 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(users.followerCount))
       .limit(10);
   }
+
+  // Search functionality
+  async searchTracks(query: string): Promise<Track[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return await db.select().from(tracks)
+      .where(
+        sql`LOWER(${tracks.title}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${tracks.artistName}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${tracks.genre}) LIKE ${`%${lowercaseQuery}%`}`
+      )
+      .limit(10);
+  }
+  
+  async searchUsers(query: string): Promise<User[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return await db.select().from(users)
+      .where(
+        sql`LOWER(${users.username}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${users.displayName}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${users.bio}) LIKE ${`%${lowercaseQuery}%`}`
+      )
+      .limit(10);
+  }
+  
+  async searchStreams(query: string): Promise<Stream[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return await db.select().from(streams)
+      .where(
+        sql`LOWER(${streams.title}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${streams.description}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${streams.category}) LIKE ${`%${lowercaseQuery}%`}`
+      )
+      .limit(10);
+  }
+  
+  async searchPosts(query: string): Promise<Post[]> {
+    const lowercaseQuery = query.toLowerCase();
+    return await db.select().from(posts)
+      .where(
+        sql`LOWER(${posts.title}) LIKE ${`%${lowercaseQuery}%`} OR 
+            LOWER(${posts.content}) LIKE ${`%${lowercaseQuery}%`}`
+      )
+      .limit(10);
+  }
+  
+  // Analytics
+  async saveAnalyticsEvent(event: any): Promise<void> {
+    // For now just log the event
+    console.log('Analytics event:', event);
+  }
+  
+  async getUserAnalytics(userId: number): Promise<any> {
+    // Get total play count for user's tracks
+    const playCountResult = await db.select({
+      totalPlays: sql<number>`SUM(${tracks.playCount})`
+    })
+    .from(tracks)
+    .where(eq(tracks.userId, userId));
+    
+    // Get total likes for user's tracks
+    const likesResult = await db.select({
+      count: sql<number>`COUNT(*)`
+    })
+    .from(likes)
+    .innerJoin(tracks, and(
+      eq(likes.contentId, tracks.id),
+      eq(likes.contentType, 'track')
+    ))
+    .where(eq(tracks.userId, userId));
+    
+    return {
+      playCount: playCountResult[0]?.totalPlays || 0,
+      totalLikes: likesResult[0]?.count || 0
+    };
+  }
+  
+  // Notifications
+  async getUserNotifications(userId: number): Promise<any[]> {
+    // In a real implementation, we would have a notifications table
+    // For now, return an empty array
+    return [];
+  }
 }
