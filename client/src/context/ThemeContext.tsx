@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/use-auth';
 type ThemeContextType = {
   primaryColor: string;
   setPrimaryColor: (color: string) => void;
+  highContrastMode: boolean;
+  setHighContrastMode: (enabled: boolean) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -13,8 +15,18 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 // Default color if no settings are found
 const DEFAULT_PRIMARY_COLOR = '#8B5CF6'; // Purple
 
+// High contrast colors - these provide better accessibility
+const HIGH_CONTRAST_COLORS = {
+  background: '#000000',
+  foreground: '#FFFFFF',
+  primary: '#FFFF00', // Yellow is high visibility
+  border: '#FFFFFF',
+  muted: '#505050',
+};
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY_COLOR);
+  const [highContrastMode, setHighContrastMode] = useState(false);
   
   // Get the authenticated user
   const { user } = useAuth();
@@ -27,16 +39,57 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   
   // Update theme when settings are loaded
   useEffect(() => {
-    if (settings?.uiColor) {
-      setPrimaryColor(settings.uiColor);
-      updateCssVariables(settings.uiColor);
+    if (settings) {
+      setPrimaryColor(settings.uiColor || DEFAULT_PRIMARY_COLOR);
+      setHighContrastMode(settings.highContrastMode || false);
+      
+      // Apply the appropriate theme
+      if (settings.highContrastMode) {
+        applyHighContrastMode();
+      } else {
+        updateCssVariables(settings.uiColor || DEFAULT_PRIMARY_COLOR);
+      }
     }
   }, [settings]);
+  
+  // Apply high contrast mode
+  const applyHighContrastMode = () => {
+    const root = document.documentElement;
+    
+    // Set high contrast colors
+    root.style.setProperty('--background', HIGH_CONTRAST_COLORS.background);
+    root.style.setProperty('--foreground', HIGH_CONTRAST_COLORS.foreground);
+    root.style.setProperty('--primary', HIGH_CONTRAST_COLORS.primary);
+    root.style.setProperty('--primary-foreground', '#000000'); // Black text on yellow for max contrast
+    root.style.setProperty('--border', HIGH_CONTRAST_COLORS.border);
+    root.style.setProperty('--muted', HIGH_CONTRAST_COLORS.muted);
+    root.style.setProperty('--muted-foreground', HIGH_CONTRAST_COLORS.foreground);
+    
+    // Increase text size and contrast
+    root.style.setProperty('--font-size-base', '1.05rem');
+    root.style.setProperty('--letter-spacing', '0.025em');
+    
+    // Add a high-contrast class to the body for additional CSS targeting
+    document.body.classList.add('high-contrast');
+    
+    // Update theme.json
+    const themeData = {
+      primary: HIGH_CONTRAST_COLORS.primary,
+      variant: "high-contrast",
+      appearance: "dark",
+      radius: 0.25 // Smaller radius for clearer outlines
+    };
+    
+    localStorage.setItem('theme', JSON.stringify(themeData));
+  };
   
   // Update CSS variables when primary color changes
   const updateCssVariables = (color: string) => {
     const root = document.documentElement;
     root.style.setProperty('--primary', color);
+    
+    // Remove high contrast class if it exists
+    document.body.classList.remove('high-contrast');
     
     // Create variations of the primary color (lighter and darker shades)
     // These are approximations - a proper color library would be better for production
@@ -57,6 +110,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     
     // Set foreground text color based on primary
     root.style.setProperty('--primary-foreground', '#ffffff');
+    
+    // Reset font size and spacing
+    root.style.setProperty('--font-size-base', '1rem');
+    root.style.setProperty('--letter-spacing', 'normal');
     
     // Create a scale of shades
     root.style.setProperty('--primary-50', lightenColor(color, 90));
@@ -84,7 +141,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   
   const handlePrimaryColorChange = (color: string) => {
     setPrimaryColor(color);
-    updateCssVariables(color);
+    
+    if (!highContrastMode) {
+      updateCssVariables(color);
+    }
+  };
+  
+  const handleHighContrastModeChange = (enabled: boolean) => {
+    setHighContrastMode(enabled);
+    
+    if (enabled) {
+      applyHighContrastMode();
+    } else {
+      updateCssVariables(primaryColor);
+    }
   };
   
   return (
@@ -92,6 +162,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       value={{
         primaryColor,
         setPrimaryColor: handlePrimaryColorChange,
+        highContrastMode,
+        setHighContrastMode: handleHighContrastModeChange,
       }}
     >
       {children}

@@ -30,6 +30,7 @@ export const userSettings = pgTable("user_settings", {
   uiColor: text("ui_color").default("#8B5CF6"), // Default purple color
   enableAutoplay: boolean("enable_autoplay").default(true),
   defaultSortType: text("default_sort_type").default("recent"), // Options: recent, popular, etc.
+  highContrastMode: boolean("high_contrast_mode").default(false), // Accessibility setting
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow()
 });
@@ -38,7 +39,8 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).pick({
   userId: true,
   uiColor: true,
   enableAutoplay: true,
-  defaultSortType: true
+  defaultSortType: true,
+  highContrastMode: true
 });
 
 // Stream model

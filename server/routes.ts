@@ -1302,7 +1302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       audioStreamConnections.delete(streamId);
     }
 
-    res.status(204).send();
+    res.json({ success: true });
   });
 
   app.post("/api/streams/:id/end", async (req, res) => {

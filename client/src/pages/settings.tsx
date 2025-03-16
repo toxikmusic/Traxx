@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, EyeIcon, Contrast } from "lucide-react";
 
 // Default color if no settings are found - must match the one in ThemeContext
 const DEFAULT_PRIMARY_COLOR = '#8B5CF6'; // Purple
@@ -39,7 +39,7 @@ const sortOptions = [
 export default function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { primaryColor, setPrimaryColor } = useTheme();
+  const { primaryColor, setPrimaryColor, highContrastMode, setHighContrastMode } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Get the authenticated user's ID
@@ -53,6 +53,7 @@ export default function SettingsPage() {
   
   // State for appearance and playback settings
   const [selectedColor, setSelectedColor] = useState<string | null>(primaryColor);
+  const [enableHighContrast, setEnableHighContrast] = useState<boolean>(highContrastMode);
   const [enableAutoplay, setEnableAutoplay] = useState<boolean | null>(null);
   const [sortType, setSortType] = useState<string | null>(null);
   
@@ -68,8 +69,14 @@ export default function SettingsPage() {
       setSelectedColor(settings.uiColor);
       setEnableAutoplay(settings.enableAutoplay);
       setSortType(settings.defaultSortType);
+      
+      // Initialize high contrast mode if set in settings
+      if (settings.highContrastMode !== undefined && settings.highContrastMode !== null) {
+        setEnableHighContrast(settings.highContrastMode);
+        setHighContrastMode(settings.highContrastMode);
+      }
     }
-  }, [settings]);
+  }, [settings, setHighContrastMode]);
   
   // Initialize profile state from user data
   useEffect(() => {
@@ -208,6 +215,7 @@ export default function SettingsPage() {
       uiColor: selectedColor || DEFAULT_PRIMARY_COLOR,
       enableAutoplay: enableAutoplay === null ? false : enableAutoplay,
       defaultSortType: sortType || "recent",
+      highContrastMode: enableHighContrast
     };
     
     console.log("Saving settings:", settingsToUpdate);
@@ -368,6 +376,26 @@ export default function SettingsPage() {
                       />
                     ))}
                   </div>
+                </div>
+                
+                <div className="flex items-center justify-between mt-6 pt-6 border-t">
+                  <div>
+                    <Label htmlFor="high-contrast" className="flex items-center gap-2 text-base">
+                      <Contrast className="h-5 w-5" />
+                      High Contrast Mode
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Increases contrast for better readability and accessibility
+                    </p>
+                  </div>
+                  <Switch
+                    id="high-contrast"
+                    checked={enableHighContrast}
+                    onCheckedChange={(checked) => {
+                      setEnableHighContrast(checked);
+                      setHighContrastMode(checked);
+                    }}
+                  />
                 </div>
               </div>
             </CardContent>
