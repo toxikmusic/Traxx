@@ -31,7 +31,8 @@ import {
 } from "@shared/schema";
 import session from "express-session";
 import { db, sql } from "./db";
-import { eq, and, desc, isNull, asc } from "drizzle-orm";
+import { eq, and, desc, isNull, asc, or, like, ilike } from "drizzle-orm";
+import { SQL } from "drizzle-orm/sql";
 import connectPg from "connect-pg-simple";
 import { IStorage } from "./storage";
 
@@ -681,62 +682,128 @@ export class DatabaseStorage implements IStorage {
 
   // Search functionality
   async searchTracks(query: string): Promise<Track[]> {
-    const lowercaseQuery = query.toLowerCase();
-    const searchPattern = `%${lowercaseQuery}%`;
-    
-    return await db.select().from(tracks)
+    try {
+      const searchPattern = `%${query}%`;
+      
+      return await db.select({
+        id: tracks.id,
+        userId: tracks.userId,
+        title: tracks.title,
+        artistName: tracks.artistName,
+        coverUrl: tracks.coverUrl,
+        audioUrl: tracks.audioUrl,
+        duration: tracks.duration,
+        playCount: tracks.playCount,
+        likeCount: tracks.likeCount,
+        uploadedAt: tracks.uploadedAt,
+        genre: tracks.genre
+      })
+      .from(tracks)
       .where(
         or(
-          like(sql`LOWER(${tracks.title})`, searchPattern),
-          like(sql`LOWER(${tracks.artistName})`, searchPattern),
-          like(sql`LOWER(${tracks.genre})`, searchPattern)
+          ilike(tracks.title, searchPattern),
+          ilike(tracks.artistName, searchPattern),
+          ilike(tracks.genre, searchPattern)
         )
       )
       .limit(10);
+    } catch (error) {
+      console.error("Error in searchTracks:", error);
+      return [];
+    }
   }
   
   async searchUsers(query: string): Promise<User[]> {
-    const lowercaseQuery = query.toLowerCase();
-    const searchPattern = `%${lowercaseQuery}%`;
-    
-    return await db.select().from(users)
+    try {
+      const searchPattern = `%${query}%`;
+      
+      return await db.select({
+        id: users.id,
+        username: users.username,
+        password: users.password,
+        displayName: users.displayName,
+        bio: users.bio,
+        profileImageUrl: users.profileImageUrl,
+        isStreaming: users.isStreaming,
+        followerCount: users.followerCount,
+        createdAt: users.createdAt
+      })
+      .from(users)
       .where(
         or(
-          like(sql`LOWER(${users.username})`, searchPattern),
-          like(sql`LOWER(${users.displayName})`, searchPattern),
-          like(sql`LOWER(${users.bio})`, searchPattern)
+          ilike(users.username, searchPattern),
+          ilike(users.displayName, searchPattern),
+          ilike(users.bio, searchPattern)
         )
       )
       .limit(10);
+    } catch (error) {
+      console.error("Error in searchUsers:", error);
+      return [];
+    }
   }
   
   async searchStreams(query: string): Promise<Stream[]> {
-    const lowercaseQuery = query.toLowerCase();
-    const searchPattern = `%${lowercaseQuery}%`;
-    
-    return await db.select().from(streams)
+    try {
+      const searchPattern = `%${query}%`;
+      
+      return await db.select({
+        id: streams.id,
+        userId: streams.userId,
+        title: streams.title,
+        description: streams.description,
+        thumbnailUrl: streams.thumbnailUrl,
+        isLive: streams.isLive,
+        viewerCount: streams.viewerCount,
+        startedAt: streams.startedAt,
+        endedAt: streams.endedAt,
+        category: streams.category,
+        tags: streams.tags
+      })
+      .from(streams)
       .where(
         or(
-          like(sql`LOWER(${streams.title})`, searchPattern),
-          like(sql`LOWER(${streams.description})`, searchPattern),
-          like(sql`LOWER(${streams.category})`, searchPattern)
+          ilike(streams.title, searchPattern),
+          ilike(streams.description, searchPattern),
+          ilike(streams.category, searchPattern)
         )
       )
       .limit(10);
+    } catch (error) {
+      console.error("Error in searchStreams:", error);
+      return [];
+    }
   }
   
   async searchPosts(query: string): Promise<Post[]> {
-    const lowercaseQuery = query.toLowerCase();
-    const searchPattern = `%${lowercaseQuery}%`;
-    
-    return await db.select().from(posts)
+    try {
+      const searchPattern = `%${query}%`;
+      
+      return await db.select({
+        id: posts.id,
+        userId: posts.userId,
+        title: posts.title,
+        content: posts.content,
+        imageUrl: posts.imageUrl,
+        createdAt: posts.createdAt,
+        updatedAt: posts.updatedAt,
+        likeCount: posts.likeCount,
+        commentCount: posts.commentCount,
+        tags: posts.tags,
+        postType: posts.postType
+      })
+      .from(posts)
       .where(
         or(
-          like(sql`LOWER(${posts.title})`, searchPattern),
-          like(sql`LOWER(${posts.content})`, searchPattern)
+          ilike(posts.title, searchPattern),
+          ilike(posts.content, searchPattern)
         )
       )
       .limit(10);
+    } catch (error) {
+      console.error("Error in searchPosts:", error);
+      return [];
+    }
   }
   
   // Analytics
@@ -746,28 +813,33 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserAnalytics(userId: number): Promise<any> {
-    // Get total play count for user's tracks
-    const playCountResult = await db.select({
-      totalPlays: sql<number>`SUM(${tracks.playCount})`
-    })
-    .from(tracks)
-    .where(eq(tracks.userId, userId));
-    
-    // Get total likes for user's tracks
-    const likesResult = await db.select({
-      count: sql<number>`COUNT(*)`
-    })
-    .from(likes)
-    .innerJoin(tracks, and(
-      eq(likes.contentId, tracks.id),
-      eq(likes.contentType, 'track')
-    ))
-    .where(eq(tracks.userId, userId));
-    
-    return {
-      playCount: playCountResult[0]?.totalPlays || 0,
-      totalLikes: likesResult[0]?.count || 0
-    };
+    try {
+      // Get total play count for user's tracks using raw SQL
+      const playCountQuery = await sql`
+        SELECT SUM(play_count) as total_plays
+        FROM tracks
+        WHERE user_id = ${userId}
+      `;
+      
+      // Get total likes for user's tracks using raw SQL
+      const likesQuery = await sql`
+        SELECT COUNT(*) as total_likes
+        FROM likes
+        JOIN tracks ON likes.content_id = tracks.id AND likes.content_type = 'track'
+        WHERE tracks.user_id = ${userId}
+      `;
+      
+      return {
+        playCount: playCountQuery[0]?.total_plays || 0,
+        totalLikes: likesQuery[0]?.total_likes || 0
+      };
+    } catch (error) {
+      console.error("Error in getUserAnalytics:", error);
+      return {
+        playCount: 0,
+        totalLikes: 0
+      };
+    }
   }
   
   // Notifications
