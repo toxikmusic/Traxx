@@ -190,6 +190,43 @@ export class AudioStreamingService {
     }
   }
   
+  /**
+   * Private: Setup internal visualization without a canvas element
+   * Used for audio level monitoring when no visual display is needed
+   */
+  private setupInternalVisualization(): void {
+    if (!this.analyserNode || !this.frequencyData) return;
+    
+    const updateInternalVisualization = () => {
+      if (!this.analyserNode || !this.frequencyData) return;
+      
+      // Get frequency data
+      this.analyserNode.getByteFrequencyData(this.frequencyData);
+      
+      // Calculate audio level from frequency data
+      let sum = 0;
+      for (let i = 0; i < this.frequencyData.length; i++) {
+        sum += this.frequencyData[i];
+      }
+      const average = sum / this.frequencyData.length;
+      
+      // Convert to dB scale (rough approximation)
+      // -60dB (quiet) to 0dB (loud)
+      const dbLevel = average === 0 ? -60 : Math.max(-60, Math.min(0, (average / 255) * 60 - 60));
+      
+      // Update stream status with audio level
+      this.streamStatus.audioLevel = dbLevel;
+      
+      // Notify status change to update UI
+      this.notifyStatusChange();
+      
+      // Continue monitoring
+      requestAnimationFrame(updateInternalVisualization);
+    };
+    
+    // Start the loop
+    updateInternalVisualization();
+  }
 
   
   /**
@@ -321,10 +358,26 @@ export class AudioStreamingService {
           }
 
           resolve(false);
+          
+          // Log detailed information about the connection failure
+          if (event.code !== 1000) {
+            console.error(`WebSocket closed abnormally. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
+            console.log("Connection details:", {
+              url: wsUrl,
+              streamId,
+              wasEverConnected: event.wasClean
+            });
+          }
         };
 
         this.socket.onerror = (error) => {
           console.error("WebSocket error:", error);
+          console.log("WebSocket connection details:", {
+            url: wsUrl,
+            readyState: this.socket ? this.socket.readyState : 'socket_not_initialized',
+            browserSupport: 'WebSocket' in window ? 'supported' : 'not_supported',
+            streamId
+          });
           clearTimeout(connectionTimeout);
           this.stopStreaming();
           resolve(false);

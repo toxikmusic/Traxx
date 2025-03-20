@@ -70,6 +70,7 @@ export default function StreamPage() {
     isLive: true,
     viewerCount: 245,
     startedAt: new Date(),
+    endedAt: null,
     category: "Music",
     tags: ["Electronic", "Chill", "Lo-Fi"]
   };
@@ -273,7 +274,9 @@ export default function StreamPage() {
         
         // Connect to our dedicated audio WebSocket as a listener
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const audioWsUrl = `${protocol}//${window.location.host}/audio/${streamId}?role=listener`;
+        const audioWsUrl = `${protocol}//${window.location.host}/audio?streamId=${streamId}&role=listener`;
+        
+        console.log(`Connecting to audio streaming WebSocket as listener: ${audioWsUrl}`);
         
         // Set up audio WebSocket connection
         const audioSocket = new WebSocket(audioWsUrl);
@@ -380,8 +383,15 @@ export default function StreamPage() {
         };
         
         // Handle connection errors
-        audioSocket.onerror = () => {
+        audioSocket.onerror = (error) => {
           setIsAudioConnected(false);
+          console.error("Audio WebSocket error:", error);
+          console.log("Connection details:", {
+            url: audioWsUrl,
+            readyState: audioSocket ? audioSocket.readyState : 'socket_not_initialized',
+            streamId,
+            role: 'listener'
+          });
           toast({
             title: "Audio stream error",
             description: "Failed to connect to audio stream. The stream may be offline.",

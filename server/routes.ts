@@ -1057,9 +1057,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Handle audio streaming WebSocket connections
   audioStreamingWss.on('connection', (ws, req) => {
     log('New audio streaming WebSocket connection established', 'websocket');
+    
+    // Log detailed connection information for debugging
+    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    log(`Connection details: IP=${clientIP}, headers=${JSON.stringify(req.headers)}`, 'websocket');
+    log(`Connection URL: ${req.url}`, 'websocket');
 
     ws.on('error', (error) => {
       log(`WebSocket error: ${error}`, 'websocket');
+      log(`WebSocket error context: URL=${req.url}, headers=${JSON.stringify(req.headers)}`, 'websocket');
       ws.close(1011, 'Internal Server Error');
     });
 
@@ -1076,9 +1082,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Parse URL to get stream ID and determine if this is a broadcaster or listener
     const url = new URL(req.url || '', `http://${req.headers.host}`);
-    const pathParts = url.pathname.split('/');
-    const streamId = parseInt(pathParts[1] || '0');
+    // Get streamId from query parameter instead of path
+    const streamId = parseInt(url.searchParams.get('streamId') || '0');
     const isBroadcaster = url.searchParams.get('role') === 'broadcaster';
+    const streamKey = url.searchParams.get('streamKey');
+    
+    log(`Audio connection request: URL=${req.url}, streamId=${streamId}, role=${isBroadcaster ? 'broadcaster' : 'listener'}, hasStreamKey=${!!streamKey}`, 'websocket');
+    log(`Connection headers: host=${req.headers.host}, origin=${req.headers.origin}, user-agent=${req.headers['user-agent']}`, 'websocket');
 
     if (streamId <= 0) {
       ws.close(1008, 'Invalid stream ID');
