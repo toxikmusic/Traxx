@@ -19,6 +19,7 @@ import { setupAuth } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { checkCloudflareService } from './services/cloudflare';
 import { log } from "./vite";
 import WebSocket, { WebSocketServer } from "ws";
@@ -210,6 +211,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(streams);
   });
 
+  // Helper function to generate a secure stream key
+  function generateStreamKey(): string {
+    // Generate a cryptographically secure random string (64 bytes = 128 hex chars)
+    const randomBytes = crypto.randomBytes(32);
+    return randomBytes.toString('hex');
+  }
+
+  // Create a new stream with a secure stream key
   app.post("/api/streams", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -226,16 +235,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Generate a secure stream key
+      const streamKey = generateStreamKey();
+      
+      // Add stream key and user ID to the stream data
       const streamData = insertStreamSchema.parse({
         ...req.body,
-        userId: req.user.id
+        userId: req.user.id,
+        streamKey: streamKey
       });
+      
+      // Create the stream in the database
       const stream = await storage.createStream(streamData);
-      res.status(201).json(stream);
+      
+      // Return the stream with the key (only shown once for security)
+      res.status(201).json({
+        ...stream,
+        streamKey: streamKey // Include the key in the response
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid stream data", errors: error.errors });
       }
+      console.error("Error creating stream:", error);
       res.status(500).json({ message: "Error creating stream" });
     }
   });
@@ -1066,7 +1088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const audioStreamConnections = new Map<number, { broadcaster: WebSocket | null, listeners: Set<WebSocket> }>();
 
   // Handle audio streaming WebSocket connections
-  audioStreamingWss.on('connection', (ws, req) => {
+  audioStreamingWss.on('connection', async (ws, req) => {
     log('New audio streaming WebSocket connection established', 'websocket');
     log(`Audio WebSocket connection from ${req.socket.remoteAddress}`, 'websocket');
     
@@ -1136,23 +1158,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const audioConnections = audioStreamConnections.get(streamId)!;
 
-    // Set up connection based on role
+    // Handle the connection based on role
     if (isBroadcaster) {
-      // If there's already a broadcaster, reject this connection
-      if (audioConnections.broadcaster && 
-          audioConnections.broadcaster.readyState === WebSocket.OPEN) {
-        ws.close(1008, 'Stream already has a broadcaster');
+      // Broadcaster role logic
+      
+      // Verify stream key for broadcasters
+      if (!streamKey) {
+        log(`Broadcaster connection rejected: No stream key provided for stream ${streamId}`, 'websocket');
+        ws.close(1008, 'Stream key required');
         return;
       }
 
-      log(`Broadcaster connected for stream ${streamId}`, 'websocket');
-      audioConnections.broadcaster = ws;
+      try {
+        // Get the stream to validate the stream key
+        const stream = await storage.getStream(streamId);
+        
+        if (!stream) {
+          log(`Broadcaster connection rejected: Stream ${streamId} not found`, 'websocket');
+          ws.close(1008, 'Stream not found');
+          return;
+        }
 
-      // Update stream status to live
-      storage.updateStream(streamId, { isLive: true }).catch(err => {
-        log(`Error updating stream status: ${err}`, 'websocket');
-      });
+        // Check if the stream key matches
+        if (stream.streamKey !== streamKey) {
+          log(`Broadcaster connection rejected: Invalid stream key for stream ${streamId}`, 'websocket');
+          ws.close(1008, 'Invalid stream key');
+          return;
+        }
 
+        // If there's already a broadcaster, reject this connection
+        if (audioConnections.broadcaster && 
+            audioConnections.broadcaster.readyState === WebSocket.OPEN) {
+          log(`Broadcaster connection rejected: Stream ${streamId} already has a broadcaster`, 'websocket');
+          ws.close(1008, 'Stream already has a broadcaster');
+          return;
+        }
+
+        log(`Broadcaster authenticated and connected for stream ${streamId}`, 'websocket');
+        audioConnections.broadcaster = ws;
+        
+        // Update stream status to live
+        await storage.updateStream(streamId, { isLive: true });
+      } catch (error) {
+        log(`Error authenticating broadcaster: ${error}`, 'websocket');
+        ws.close(1011, 'Server error while authenticating');
+        return;
+      }
+      
       // Handle broadcaster messages (audio data or control messages)
       ws.on('message', (data) => {
         // Check if this is a control message (string) or audio data (binary)
@@ -1344,6 +1396,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     res.json({ success: true });
+  });
+
+  // Regenerate a stream key for an existing stream
+  app.post("/api/streams/:id/regenerate-key", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const streamId = parseInt(req.params.id);
+    if (isNaN(streamId)) {
+      return res.status(400).json({ message: "Invalid stream ID" });
+    }
+
+    const stream = await storage.getStream(streamId);
+    if (!stream) {
+      return res.status(404).json({ message: "Stream not found" });
+    }
+
+    // Only allow the stream owner to regenerate keys
+    if (stream.userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only manage your own streams" });
+    }
+
+    try {
+      // Generate a new stream key
+      const newStreamKey = generateStreamKey();
+      
+      // Update the stream with the new key
+      await storage.updateStream(streamId, { streamKey: newStreamKey });
+      
+      // Return the new stream key (only shown once for security)
+      res.json({ 
+        id: streamId,
+        streamKey: newStreamKey,
+        message: "Stream key regenerated successfully. Keep this key secure." 
+      });
+    } catch (error) {
+      console.error("Error regenerating stream key:", error);
+      res.status(500).json({ message: "Error regenerating stream key" });
+    }
   });
 
   app.post("/api/streams/:id/end", async (req, res) => {

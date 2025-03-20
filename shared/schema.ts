@@ -50,6 +50,7 @@ export const streams = pgTable("streams", {
   title: text("title").notNull(),
   description: text("description"),
   thumbnailUrl: text("thumbnail_url"),
+  streamKey: text("stream_key"),   // Stream key for secure broadcasting
   isLive: boolean("is_live").default(false),
   viewerCount: integer("viewer_count").default(0),
   startedAt: timestamp("started_at").defaultNow(),
@@ -63,6 +64,7 @@ export const insertStreamSchema = createInsertSchema(streams).pick({
   title: true,
   description: true,
   thumbnailUrl: true,
+  streamKey: true,
   category: true,
   tags: true
 });
