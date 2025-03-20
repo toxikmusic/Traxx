@@ -15,18 +15,32 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
-import { Camera, Loader2, EyeIcon, Contrast } from "lucide-react";
+import { 
+  Camera, 
+  Loader2, 
+  EyeIcon, 
+  Contrast, 
+  Sun, 
+  Moon, 
+  Monitor, 
+  Palette,
+  Check
+} from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Default color if no settings are found - must match the one in ThemeContext
 const DEFAULT_PRIMARY_COLOR = '#8B5CF6'; // Purple
 
-// Color options for UI theme
+// Color options for UI theme with descriptive names and hex values
 const colorOptions = [
-  { name: "Purple", value: "#8B5CF6" },
-  { name: "Blue", value: "#3B82F6" },
-  { name: "Green", value: "#10B981" },
-  { name: "Orange", value: "#F59E0B" },
-  { name: "Pink", value: "#EC4899" },
+  { name: "Purple", value: "#8B5CF6", description: "Creative, imaginative" },
+  { name: "Blue", value: "#3B82F6", description: "Calm, trustworthy" },
+  { name: "Green", value: "#10B981", description: "Fresh, natural" },
+  { name: "Orange", value: "#F59E0B", description: "Energetic, warm" },
+  { name: "Pink", value: "#EC4899", description: "Playful, vibrant" },
+  { name: "Red", value: "#EF4444", description: "Bold, passionate" },
+  { name: "Teal", value: "#14B8A6", description: "Balanced, refreshing" },
+  { name: "Indigo", value: "#6366F1", description: "Mysterious, unique" },
 ];
 
 // Sort options for content
@@ -358,48 +372,213 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
+              <div className="space-y-8">
                 <div>
-                  <h3 className="text-lg font-medium mb-3">UI Color</h3>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Palette className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-medium">Color Theme</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                     {colorOptions.map((color) => (
                       <div
                         key={color.value}
-                        className={`w-10 h-10 rounded-full cursor-pointer border-2 ${
+                        className={`group cursor-pointer rounded-lg transition-all duration-300 ${
                           selectedColor === color.value
-                            ? "border-white scale-110"
-                            : "border-transparent"
+                            ? "ring-2 ring-primary ring-offset-2 bg-muted/40"
+                            : "hover:bg-muted/20"
                         }`}
-                        style={{ backgroundColor: color.value }}
                         onClick={() => handleColorChange(color.value)}
-                        title={color.name}
-                      />
+                      >
+                        <div className="p-3 flex flex-col items-center">
+                          <div 
+                            className="w-12 h-12 rounded-full mb-2 relative flex items-center justify-center"
+                            style={{ backgroundColor: color.value }}
+                          >
+                            {selectedColor === color.value && (
+                              <Check className="h-5 w-5 text-white" />
+                            )}
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium">{color.name}</div>
+                            <div className="text-xs text-muted-foreground">{color.description}</div>
+                          </div>
+                        </div>
+                      </div>
                     ))}
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-muted/20 rounded-lg border border-border">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <div
+                        className="w-16 h-16 rounded-lg shadow-md flex-shrink-0"
+                        style={{ backgroundColor: selectedColor || DEFAULT_PRIMARY_COLOR }}
+                      ></div>
+                      <div className="flex-1">
+                        <h4 className="font-medium mb-1">Selected Color</h4>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {colorOptions.find(c => c.value === selectedColor)?.name || 'Custom'} - {selectedColor || DEFAULT_PRIMARY_COLOR}
+                        </p>
+                        <div className="text-xs mb-3">
+                          This color will be used throughout the application for buttons, links, and highlights.
+                        </div>
+                        
+                        <div className="flex gap-2 items-center mt-2">
+                          <div className="flex-1 max-w-xs">
+                            <Label htmlFor="custom-color" className="text-xs font-medium mb-1 block">
+                              Custom Hex Color
+                            </Label>
+                            <div className="flex">
+                              <Input
+                                id="custom-color"
+                                type="text"
+                                value={selectedColor || ''}
+                                onChange={(e) => {
+                                  // Validate hex color format
+                                  const input = e.target.value;
+                                  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(input) || input === '') {
+                                    handleColorChange(input || DEFAULT_PRIMARY_COLOR);
+                                  }
+                                }}
+                                placeholder="#RRGGBB"
+                                className="flex-1"
+                                maxLength={7}
+                              />
+                              <div className="relative w-12">
+                                <input 
+                                  type="color"
+                                  value={selectedColor || DEFAULT_PRIMARY_COLOR}
+                                  onChange={(e) => handleColorChange(e.target.value)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                />
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="icon"
+                                  className="h-full border-l-0 rounded-l-none w-full"
+                                >
+                                  <Palette className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between mt-6 pt-6 border-t">
-                  <div>
-                    <Label htmlFor="high-contrast" className="flex items-center gap-2 text-base">
-                      <Contrast className="h-5 w-5" />
-                      High Contrast Mode
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Increases contrast for better readability and accessibility
-                    </p>
+                {!enableHighContrast && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-medium mb-3 flex items-center gap-2">
+                      <EyeIcon className="h-5 w-5 text-primary" />
+                      Preview
+                    </h3>
+                    <div className="p-4 bg-muted/20 rounded-lg border border-border">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        See how your selected color will look in the application:
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs mb-1 font-medium">Buttons</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button size="sm" style={{backgroundColor: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>
+                                Primary
+                              </Button>
+                              <Button size="sm" variant="outline">
+                                <span style={{color: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>Outline</span>
+                              </Button>
+                              <Button size="sm" variant="ghost">
+                                <span style={{color: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>Ghost</span>
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs mb-1 font-medium">Switch</p>
+                            <Switch checked={true} style={{"--thumb-size": "1rem", "--track-padding": "2px", backgroundColor: selectedColor || DEFAULT_PRIMARY_COLOR} as any} />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs mb-1 font-medium">Links</p>
+                            <div className="space-y-1">
+                              <p>Regular text with a <a href="#" style={{color: selectedColor || DEFAULT_PRIMARY_COLOR, textDecoration: "underline"} as React.CSSProperties}>colored link</a> inside.</p>
+                              <a href="#" style={{color: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>Standalone link</a>
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs mb-1 font-medium">Badge</p>
+                            <div className="flex gap-2">
+                              <span className="px-2 py-1 text-xs rounded-full text-white" style={{backgroundColor: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>
+                                Badge
+                              </span>
+                              <span className="px-2 py-1 text-xs rounded-full border" style={{color: selectedColor || DEFAULT_PRIMARY_COLOR, borderColor: selectedColor || DEFAULT_PRIMARY_COLOR} as React.CSSProperties}>
+                                Outline
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <Switch
-                    id="high-contrast"
-                    checked={enableHighContrast}
-                    onCheckedChange={(checked) => {
-                      setEnableHighContrast(checked);
-                      setHighContrastMode(checked);
-                    }}
-                  />
+                )}
+
+                <div className="flex flex-col space-y-4 mt-8 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="high-contrast" className="flex items-center gap-2 text-base">
+                        <Contrast className="h-5 w-5 text-primary" />
+                        High Contrast Mode
+                      </Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Increases contrast for better readability and accessibility
+                      </p>
+                    </div>
+                    <Switch
+                      id="high-contrast"
+                      checked={enableHighContrast}
+                      onCheckedChange={(checked) => {
+                        setEnableHighContrast(checked);
+                        setHighContrastMode(checked);
+                      }}
+                    />
+                  </div>
+                  
+                  {enableHighContrast && (
+                    <div className="p-3 bg-yellow-400 text-black rounded-md text-sm mt-2">
+                      <div className="font-medium">High Contrast Mode Active</div>
+                      <p className="text-xs mt-1">
+                        This mode overrides your color selection to provide maximum readability.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex justify-between flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  // Reset to defaults
+                  setSelectedColor(DEFAULT_PRIMARY_COLOR);
+                  setPrimaryColor(DEFAULT_PRIMARY_COLOR);
+                  setEnableHighContrast(false);
+                  setHighContrastMode(false);
+                  toast({
+                    title: "Settings Reset",
+                    description: "Appearance settings have been reset to defaults.",
+                  });
+                }}
+                disabled={updateSettingsMutation.isPending}
+              >
+                Reset to Defaults
+              </Button>
+              
               <Button
                 onClick={saveSettings}
                 disabled={updateSettingsMutation.isPending}
