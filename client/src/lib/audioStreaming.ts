@@ -290,9 +290,25 @@ export class AudioStreamingService {
 
       // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
+      
+      // Detect if we're in a Replit environment
+      const isReplit = window.location.hostname.includes('replit');
+      
+      // For Replit, strip the port number from the host
+      let host = window.location.host;
+      if (isReplit && host.includes(':')) {
+        host = window.location.hostname; // Use only hostname without port
+      }
+      
+      const wsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
 
       console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
+      console.log("Environment info:", {
+        isReplit,
+        hostname: window.location.hostname,
+        protocol,
+        host
+      });
       this.socket = new WebSocket(wsUrl);
 
       // Set a connection timeout

@@ -60,56 +60,7 @@ export default function StreamPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // Mock data for development until the real data is fetched
-  const mockStream: Stream = {
-    id: 1,
-    userId: 1,
-    title: "Late Night Beats",
-    description: "Chill vibes and smooth beats to relax to. Join the chat and let's vibe together!",
-    thumbnailUrl: "/uploads/images/stream-thumbnail-1.jpg",
-    isLive: true,
-    viewerCount: 245,
-    startedAt: new Date(),
-    endedAt: null,
-    category: "Music",
-    tags: ["Electronic", "Chill", "Lo-Fi"]
-  };
-  
-  const mockStreamer: User = {
-    id: 1,
-    username: "djshadow",
-    password: "",
-    displayName: "DJ Shadow",
-    bio: "Music producer and DJ specializing in ambient electronic and lo-fi beats",
-    profileImageUrl: "/uploads/images/profile-dj-shadow.jpg",
-    isStreaming: true,
-    followerCount: 5280,
-    createdAt: new Date(2023, 1, 15)
-  };
-  
-  const mockChatMessages: ChatMessage[] = [
-    {
-      id: 1,
-      userId: 2,
-      username: "MusicLover42",
-      message: "This beat is fire! 🔥",
-      timestamp: new Date(Date.now() - 15 * 60000)
-    },
-    {
-      id: 2,
-      userId: 3,
-      username: "ChillVibesOnly",
-      message: "Perfect for late night coding sessions",
-      timestamp: new Date(Date.now() - 10 * 60000)
-    },
-    {
-      id: 3,
-      userId: 4,
-      username: "BassHead",
-      message: "That bassline tho!",
-      timestamp: new Date(Date.now() - 5 * 60000)
-    }
-  ];
+  // Stream data is now fetched from the API using React Query
   
   // Query for stream data
   const { data: stream, isLoading: streamLoading } = useQuery<Stream>({
@@ -163,7 +114,23 @@ export default function StreamPage() {
     
     // Setup WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    // Detect if we're in a Replit environment
+    const isReplit = window.location.hostname.includes('replit');
+    
+    // For Replit, strip the port number from the host
+    let host = window.location.host;
+    if (isReplit && host.includes(':')) {
+      host = window.location.hostname; // Use only hostname without port
+    }
+    const wsUrl = `${protocol}//${host}/ws`;
+    
+    console.log("Chat WebSocket environment info:", {
+      isReplit,
+      hostname: window.location.hostname,
+      protocol,
+      host
+    });
+    console.log("Connecting to chat WebSocket:", wsUrl);
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
     
@@ -274,7 +241,25 @@ export default function StreamPage() {
         
         // Connect to our dedicated audio WebSocket as a listener
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const audioWsUrl = `${protocol}//${window.location.host}/audio?streamId=${streamId}&role=listener`;
+        
+        // Handle WebSocket URL specially for Replit environment
+        // Detect if we're in a Replit environment based on hostname
+        const isReplit = window.location.hostname.includes('replit');
+        
+        // In Replit, we must use the correct hostname without any extra port
+        // For Replit, strip the port number from the host
+        let host = window.location.host;
+        if (isReplit && host.includes(':')) {
+          host = window.location.hostname; // Use only hostname without port
+        }
+        const audioWsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=listener`;
+        
+        console.log("Environment info:", {
+          isReplit,
+          hostname: window.location.hostname,
+          protocol,
+          host
+        });
         
         console.log(`Connecting to audio streaming WebSocket as listener: ${audioWsUrl}`);
         
@@ -450,9 +435,9 @@ export default function StreamPage() {
   
   // Initialize UI and scroll chat to bottom on load
   useEffect(() => {
-    // For initial load, use mock data if no real data yet
+    // Initialize empty chat until we receive messages from WebSocket
     if (!chatMessages.length) {
-      setChatMessages(mockChatMessages);
+      setChatMessages([]);
     }
     
     // Simulate video playback with poster image
@@ -523,8 +508,25 @@ export default function StreamPage() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const displayedStream = stream || mockStream;
-  const displayedStreamer = streamer || mockStreamer;
+  // Create default stream and streamer objects to use while loading
+  const defaultStream: Partial<Stream> = {
+    id: streamId || 0,
+    title: "Loading stream...",
+    description: "Stream information is loading",
+    isLive: false,
+    viewerCount: 0,
+    tags: []
+  };
+  
+  const defaultStreamer: Partial<User> = {
+    id: 0,
+    username: "loading",
+    displayName: "Loading...",
+    followerCount: 0
+  };
+  
+  const displayedStream = stream || defaultStream as Stream;
+  const displayedStreamer = streamer || defaultStreamer as User;
 
   return (
     <div className="flex flex-col min-h-screen bg-dark-300 text-white">
@@ -603,7 +605,7 @@ export default function StreamPage() {
                             <Users size={14} className="mr-1" />
                             {(viewerCount || displayedStream.viewerCount || 0).toLocaleString()} viewers
                           </Badge>
-                          {displayedStream.tags?.map((tag, idx) => (
+                          {displayedStream.tags?.map((tag: string, idx: number) => (
                             <Badge key={idx} variant="outline" className="bg-dark-100 hover:bg-dark-100">
                               {tag}
                             </Badge>

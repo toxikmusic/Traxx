@@ -169,6 +169,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Streams
+  app.get("/api/streams", async (req, res) => {
+    try {
+      // Currently we'll use featured streams as a substitute for all streams
+      // In the future, this could be a separate function in storage
+      const streams = await storage.getFeaturedStreams();
+      res.json(streams);
+    } catch (error) {
+      res.status(500).json({ message: "Error getting streams" });
+    }
+  });
+  
   app.get("/api/streams/featured", async (req, res) => {
     const streams = await storage.getFeaturedStreams();
     res.json(streams);
@@ -1057,6 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Handle audio streaming WebSocket connections
   audioStreamingWss.on('connection', (ws, req) => {
     log('New audio streaming WebSocket connection established', 'websocket');
+    log(`Audio WebSocket connection from ${req.socket.remoteAddress}`, 'websocket');
     
     // Log detailed connection information for debugging
     const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -1081,11 +1093,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Parse URL to get stream ID and determine if this is a broadcaster or listener
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    // Get streamId from query parameter instead of path
-    const streamId = parseInt(url.searchParams.get('streamId') || '0');
-    const isBroadcaster = url.searchParams.get('role') === 'broadcaster';
-    const streamKey = url.searchParams.get('streamKey');
+    let streamId = 0;
+    let isBroadcaster = false;
+    let streamKey: string | null = null;
+    
+    // Use a try-catch to properly handle URL parsing errors that might occur
+    try {
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      
+      // Log detailed URL parsing information for debugging
+      log(`Audio WebSocket URL parsing: raw URL=${req.url}, host=${req.headers.host}`, 'websocket');
+      log(`Parsed URL: protocol=${url.protocol}, host=${url.host}, pathname=${url.pathname}, search=${url.search}`, 'websocket');
+      
+      // Get streamId from query parameter instead of path
+      streamId = parseInt(url.searchParams.get('streamId') || '0');
+      isBroadcaster = url.searchParams.get('role') === 'broadcaster';
+      streamKey = url.searchParams.get('streamKey');
+      
+      // Log the extracted parameters
+      log(`Audio connection parameters: streamId=${streamId}, isBroadcaster=${isBroadcaster}, hasStreamKey=${!!streamKey}`, 'websocket');
+    } catch (error) {
+      log(`Error parsing WebSocket URL: ${error}`, 'websocket');
+      ws.close(1008, 'Invalid connection parameters');
+      return;
+    }
     
     log(`Audio connection request: URL=${req.url}, streamId=${streamId}, role=${isBroadcaster ? 'broadcaster' : 'listener'}, hasStreamKey=${!!streamKey}`, 'websocket');
     log(`Connection headers: host=${req.headers.host}, origin=${req.headers.origin}, user-agent=${req.headers['user-agent']}`, 'websocket');
