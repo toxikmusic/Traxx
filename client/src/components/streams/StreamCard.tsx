@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Stream } from "@shared/schema";
 import ShareWidget from "@/components/social/ShareWidget";
 import { useAuth } from "@/hooks/use-auth";
-import { endStream } from "@/lib/api";
+import { deleteStream } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,10 +30,12 @@ export default function StreamCard({ stream }: StreamCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const isCurrentUserStream = user?.id === stream.userId;
   
+  // End stream mutation (for live streams)
   const endStreamMutation = useMutation({
-    mutationFn: () => endStream(stream.id),
+    mutationFn: () => deleteStream(stream.id),
     onSuccess: () => {
       toast({
         title: "Stream ended",
@@ -42,6 +44,9 @@ export default function StreamCard({ stream }: StreamCardProps) {
       // Invalidate streams queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: ["/api/streams/featured"] });
       queryClient.invalidateQueries({ queryKey: [`/api/streams/user/${user?.id}`] });
+      
+      // Close dialog
+      setShowEndDialog(false);
     },
     onError: (error) => {
       toast({
@@ -50,6 +55,31 @@ export default function StreamCard({ stream }: StreamCardProps) {
         variant: "destructive",
       });
       console.error("Error ending stream:", error);
+    },
+  });
+  
+  // Delete stream mutation (for non-live streams)
+  const deleteStreamMutation = useMutation({
+    mutationFn: () => deleteStream(stream.id),
+    onSuccess: () => {
+      toast({
+        title: "Stream deleted",
+        description: "The stream has been deleted successfully.",
+      });
+      // Invalidate streams queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ["/api/streams/featured"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/streams/user/${user?.id}`] });
+      
+      // Close dialog
+      setShowDeleteDialog(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to delete stream",
+        description: "There was an error deleting the stream. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error deleting stream:", error);
     },
   });
   return (
@@ -115,49 +145,98 @@ export default function StreamCard({ stream }: StreamCardProps) {
         </div>
       </div>
       
-      {/* Add End Stream button for user's own live streams */}
-      {isCurrentUserStream && stream.isLive && (
+      {/* Controls for user's own streams */}
+      {isCurrentUserStream && (
         <>
-          <div className="px-3 pb-3 pt-1 flex justify-end">
-            <Button 
-              variant="destructive" 
-              size="sm"
-              className="flex items-center gap-1"
-              onClick={() => setShowEndDialog(true)}
-            >
-              <X size={14} />
-              End Stream
-            </Button>
-          </div>
-          
-          {/* Confirmation Dialog */}
-          <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  End Live Stream
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to end this live stream? This action cannot be undone 
-                  and all current viewers will be disconnected.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={endStreamMutation.isPending}>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    endStreamMutation.mutate();
-                  }}
-                  disabled={endStreamMutation.isPending}
-                  className="bg-destructive hover:bg-destructive/90"
+          {/* For live streams: End Stream button */}
+          {stream.isLive ? (
+            <>
+              <div className="px-3 pb-3 pt-1 flex justify-end">
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => setShowEndDialog(true)}
                 >
-                  {endStreamMutation.isPending ? 'Ending...' : 'End Stream'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <X size={14} />
+                  End Stream
+                </Button>
+              </div>
+              
+              {/* End Live Stream Confirmation Dialog */}
+              <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      End Live Stream
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to end this live stream? This action cannot be undone 
+                      and all current viewers will be disconnected.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={endStreamMutation.isPending}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        endStreamMutation.mutate();
+                      }}
+                      disabled={endStreamMutation.isPending}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      {endStreamMutation.isPending ? 'Ending...' : 'End Stream'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : (
+            /* For past streams: Delete button */
+            <>
+              <div className="px-3 pb-3 pt-1 flex justify-end">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </Button>
+              </div>
+              
+              {/* Delete Stream Confirmation Dialog */}
+              <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-destructive" />
+                      Delete Stream
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this stream? This action cannot be undone
+                      and the stream will be permanently removed from your profile.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleteStreamMutation.isPending}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        deleteStreamMutation.mutate();
+                      }}
+                      disabled={deleteStreamMutation.isPending}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      {deleteStreamMutation.isPending ? 'Deleting...' : 'Delete Stream'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
         </>
       )}
     </div>
