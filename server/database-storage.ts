@@ -375,6 +375,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(streams.id, id));
   }
   
+  async deleteStream(id: number): Promise<boolean> {
+    try {
+      // Delete the stream
+      const result = await db.delete(streams)
+        .where(eq(streams.id, id))
+        .returning();
+      
+      // Update the user's streaming status if this was a live stream
+      if (result.length > 0 && result[0].isLive) {
+        const stream = result[0];
+        await db.update(users)
+          .set({ isStreaming: false })
+          .where(eq(users.id, stream.userId));
+      }
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting stream:', error);
+      return false;
+    }
+  }
+  
   // Tracks
   async getTrack(id: number): Promise<Track | undefined> {
     const result = await db.select().from(tracks).where(eq(tracks.id, id));
@@ -670,6 +692,34 @@ export class DatabaseStorage implements IStorage {
           playCount: (track.playCount || 0) + 1
         })
         .where(eq(tracks.id, trackId));
+    }
+  }
+  
+  async deleteTrack(id: number): Promise<boolean> {
+    try {
+      // First, delete associated likes
+      await db.delete(likes)
+        .where(and(
+          eq(likes.contentId, id),
+          eq(likes.contentType, 'track')
+        ));
+        
+      // Delete associated comments
+      await db.delete(comments)
+        .where(and(
+          eq(comments.contentId, id),
+          eq(comments.contentType, 'track')
+        ));
+      
+      // Delete the track
+      const result = await db.delete(tracks)
+        .where(eq(tracks.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting track:', error);
+      return false;
     }
   }
   

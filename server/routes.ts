@@ -1270,13 +1270,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "You can only delete your own streams" });
     }
 
-    // Mark the stream as ended instead of deleting it
-    await storage.updateStream(streamId, { 
-      isLive: false,
-      endedAt: new Date(),
-      viewerCount: 0
-    });
-
     // Clean up WebSocket connections
     const connections = streamConnections.get(streamId);
     if (connections) {
@@ -1301,6 +1294,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       audioStreamConnections.delete(streamId);
+    }
+
+    // Actually delete the stream
+    const success = await storage.deleteStream(streamId);
+    if (!success) {
+      return res.status(500).json({ message: "Failed to delete stream" });
     }
 
     res.json({ success: true });
@@ -1480,6 +1479,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const analytics = await storage.getUserAnalytics(userId);
     res.json(analytics);
+  });
+
+  // Delete track endpoint
+  app.delete("/api/tracks/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const trackId = parseInt(req.params.id);
+    if (isNaN(trackId)) {
+      return res.status(400).json({ message: "Invalid track ID" });
+    }
+
+    const track = await storage.getTrack(trackId);
+    if (!track) {
+      return res.status(404).json({ message: "Track not found" });
+    }
+
+    // Only allow the track owner to delete it
+    if (track.userId !== req.user.id) {
+      return res.status(403).json({ message: "You can only delete your own tracks" });
+    }
+
+    // Delete track and related data
+    const success = await storage.deleteTrack(trackId);
+    if (!success) {
+      return res.status(500).json({ message: "Failed to delete track" });
+    }
+
+    res.json({ success: true });
   });
 
   // Notifications endpoint

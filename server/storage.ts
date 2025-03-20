@@ -59,12 +59,14 @@ export interface IStorage {
   createStream(stream: InsertStream): Promise<Stream>;
   updateStream(id: number, data: Partial<Stream>): Promise<Stream | undefined>;
   updateStreamViewerCount(id: number, count: number): Promise<void>;
+  deleteStream(id: number): Promise<boolean>;
   
   // Tracks
   getTrack(id: number): Promise<Track | undefined>;
   getRecentTracks(): Promise<Track[]>;
   getTracksByUser(userId: number): Promise<Track[]>;
   createTrack(track: InsertTrack): Promise<Track>;
+  deleteTrack(id: number): Promise<boolean>;
   incrementTrackPlayCount(trackId: number): Promise<void>;
   
   // Posts
@@ -402,6 +404,25 @@ export class MemStorage implements IStorage {
     }
   }
   
+  async deleteStream(id: number): Promise<boolean> {
+    const stream = this.streams.get(id);
+    if (!stream) {
+      return false;
+    }
+    
+    // Update user streaming status if needed
+    if (stream.isLive) {
+      const user = this.users.get(stream.userId);
+      if (user) {
+        user.isStreaming = false;
+        this.users.set(user.id, user);
+      }
+    }
+    
+    this.streams.delete(id);
+    return true;
+  }
+  
   // Tracks
   async getTrack(id: number): Promise<Track | undefined> {
     return this.tracks.get(id);
@@ -650,6 +671,30 @@ export class MemStorage implements IStorage {
       track.playCount += 1;
       this.tracks.set(trackId, track);
     }
+  }
+  
+  async deleteTrack(id: number): Promise<boolean> {
+    const track = this.tracks.get(id);
+    if (!track) {
+      return false;
+    }
+    this.tracks.delete(id);
+    
+    // Also remove associated likes
+    const likesToRemove = Array.from(this.likes.values())
+      .filter(like => like.contentId === id && like.contentType === 'track')
+      .map(like => like.id);
+    
+    likesToRemove.forEach(likeId => this.likes.delete(likeId));
+    
+    // Also remove associated comments
+    const commentsToRemove = Array.from(this.comments.values())
+      .filter(comment => comment.contentId === id && comment.contentType === 'track')
+      .map(comment => comment.id);
+    
+    commentsToRemove.forEach(commentId => this.comments.delete(commentId));
+    
+    return true;
   }
   
   // Creators

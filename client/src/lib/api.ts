@@ -83,6 +83,12 @@ export async function getTracksByUser(userId: number): Promise<Track[]> {
   return await apiRequest<Track[]>(`/api/tracks/user/${userId}`);
 }
 
+export async function deleteTrack(trackId: number): Promise<{ success: boolean }> {
+  return await apiRequest<{ success: boolean }>(`/api/tracks/${trackId}`, {
+    method: "DELETE"
+  });
+}
+
 // Streams
 export async function getFeaturedStreams(): Promise<Stream[]> {
   return await apiRequest<Stream[]>("/api/streams/featured");
@@ -99,10 +105,15 @@ export async function createStream(data: Partial<Stream>): Promise<Stream> {
   });
 }
 
-export async function endStream(streamId: number): Promise<{ success: boolean }> {
+export async function deleteStream(streamId: number): Promise<{ success: boolean }> {
   return await apiRequest<{ success: boolean }>(`/api/streams/${streamId}`, {
     method: "DELETE"
   });
+}
+
+// Legacy function for backward compatibility
+export async function endStream(streamId: number): Promise<{ success: boolean }> {
+  return deleteStream(streamId);
 }
 
 // Creators
