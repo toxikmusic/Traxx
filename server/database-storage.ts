@@ -62,6 +62,8 @@ export class DatabaseStorage implements IStorage {
       const existingUsers = await db.select().from(users).limit(1);
       
       if (existingUsers.length === 0) {
+        console.log("Initializing database with default data...");
+        
         // Add default genres for a clean installation
         const defaultGenres = [
           "Electronic", "Hip Hop", "Lo-Fi", "House", "Indie", 
@@ -70,6 +72,123 @@ export class DatabaseStorage implements IStorage {
         
         for (const name of defaultGenres) {
           await db.insert(genres).values({ name }).onConflictDoNothing();
+        }
+        
+        // Create demo user accounts
+        const demoUsers = [
+          {
+            username: "producer1",
+            password: "$2b$10$JXQ5YL94jZJ5wwuMXJZzweBuES1t8Fy/Msk3oeUH3z2jHDViMcKjK", // hashed "password123"
+            displayName: "Music Producer",
+            bio: "Creating electronic and lo-fi beats",
+            profileImageUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
+            isStreaming: false,
+            followerCount: 120
+          },
+          {
+            username: "beatmaker",
+            password: "$2b$10$JXQ5YL94jZJ5wwuMXJZzweBuES1t8Fy/Msk3oeUH3z2jHDViMcKjK", // hashed "password123"
+            displayName: "Beat Maker",
+            bio: "Hip hop and trap production",
+            profileImageUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d",
+            isStreaming: false,
+            followerCount: 85
+          },
+          {
+            username: "dj_live",
+            password: "$2b$10$JXQ5YL94jZJ5wwuMXJZzweBuES1t8Fy/Msk3oeUH3z2jHDViMcKjK", // hashed "password123"
+            displayName: "DJ Live",
+            bio: "House and techno live sets",
+            profileImageUrl: "https://images.unsplash.com/photo-1463453091185-61582044d556",
+            isStreaming: true,
+            followerCount: 250
+          }
+        ];
+        
+        for (const user of demoUsers) {
+          await db.insert(users).values(user).onConflictDoNothing();
+        }
+        
+        // Get the inserted users to use their IDs
+        const insertedUsers = await db.select().from(users);
+        
+        if (insertedUsers.length > 0) {
+          // Create demo tracks
+          const demoTracks = [
+            {
+              userId: insertedUsers[0].id,
+              title: "Summer Vibes",
+              artistName: insertedUsers[0].displayName,
+              coverUrl: "https://images.unsplash.com/photo-1594623930572-300a3011d9ae",
+              audioUrl: "/tracks/demo-track1.mp3", // This would be a real file path in production
+              duration: 180, // 3 minutes
+              genre: "Electronic",
+              playCount: 1250,
+              likeCount: 87,
+              uploadedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 1 week ago
+            },
+            {
+              userId: insertedUsers[1].id,
+              title: "Midnight Beats",
+              artistName: insertedUsers[1].displayName,
+              coverUrl: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819",
+              audioUrl: "/tracks/demo-track2.mp3",
+              duration: 210, // 3:30 minutes
+              genre: "Hip Hop",
+              playCount: 890,
+              likeCount: 53,
+              uploadedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+            },
+            {
+              userId: insertedUsers[2].id,
+              title: "Club Energy",
+              artistName: insertedUsers[2].displayName,
+              coverUrl: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f",
+              audioUrl: "/tracks/demo-track3.mp3",
+              duration: 240, // 4 minutes
+              genre: "House",
+              playCount: 1560,
+              likeCount: 112,
+              uploadedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+            }
+          ];
+          
+          for (const track of demoTracks) {
+            await db.insert(tracks).values(track).onConflictDoNothing();
+          }
+          
+          // Create demo streams
+          const demoStreams = [
+            {
+              userId: insertedUsers[2].id,
+              title: "Live DJ Set - House & Techno",
+              description: "Join me for a live DJ set featuring the latest house and techno tracks!",
+              thumbnailUrl: "https://images.unsplash.com/photo-1516223725307-6f76b9ec8742",
+              isLive: true,
+              viewerCount: 120,
+              startedAt: new Date(Date.now() - 30 * 60 * 1000), // Started 30 minutes ago
+              category: "Music",
+              tags: ["house", "techno", "live", "dj"]
+            },
+            {
+              userId: insertedUsers[0].id,
+              title: "Producing a new track - Come watch!",
+              description: "Working on a new electronic track. Give feedback in the chat!",
+              thumbnailUrl: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04",
+              isLive: false,
+              viewerCount: 0,
+              startedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+              endedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000), // 2 hours after start
+              category: "Production",
+              tags: ["production", "electronic", "beatmaking"]
+            }
+          ];
+          
+          for (const stream of demoStreams) {
+            await db.insert(streams).values(stream).onConflictDoNothing();
+          }
+          
+          console.log("Database initialized with default data.");
         }
       }
     } catch (error) {
@@ -110,11 +229,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async incrementFollowerCount(userId: number): Promise<void> {
-    await db.update(users)
-      .set({
-        followerCount: sql`${users.followerCount} + 1`
-      })
-      .where(eq(users.id, userId));
+    const user = await this.getUser(userId);
+    if (user) {
+      await db.update(users)
+        .set({
+          followerCount: (user.followerCount || 0) + 1
+        })
+        .where(eq(users.id, userId));
+    }
   }
 
   async decrementFollowerCount(userId: number): Promise<void> {
@@ -371,23 +493,27 @@ export class DatabaseStorage implements IStorage {
       
       // Update like count on content
       if (like.contentType === 'track') {
-        await tx.update(tracks)
-          .set({
-            likeCount: sql`${tracks.likeCount} + 1`
-          })
-          .where(eq(tracks.id, like.contentId));
+        const track = await this.getTrack(like.contentId);
+        if (track) {
+          await tx.update(tracks)
+            .set({
+              likeCount: (track.likeCount || 0) + 1
+            })
+            .where(eq(tracks.id, like.contentId));
+        }
       } else if (like.contentType === 'post') {
-        await tx.update(posts)
-          .set({
-            likeCount: sql`${posts.likeCount} + 1`
-          })
-          .where(eq(posts.id, like.contentId));
+        const post = await this.getPost(like.contentId);
+        if (post) {
+          await tx.update(posts)
+            .set({
+              likeCount: (post.likeCount || 0) + 1
+            })
+            .where(eq(posts.id, like.contentId));
+        }
       }
     });
     
     return result![0];
-    
-    return result[0];
   }
   
   async removeLike(userId: number, contentId: number, contentType: string): Promise<void> {
@@ -536,11 +662,14 @@ export class DatabaseStorage implements IStorage {
   
   // Track play count
   async incrementTrackPlayCount(trackId: number): Promise<void> {
-    await db.update(tracks)
-      .set({
-        playCount: sql`${tracks.playCount} + 1`
-      })
-      .where(eq(tracks.id, trackId));
+    const track = await this.getTrack(trackId);
+    if (track) {
+      await db.update(tracks)
+        .set({
+          playCount: (track.playCount || 0) + 1
+        })
+        .where(eq(tracks.id, trackId));
+    }
   }
   
   // Creators
@@ -553,43 +682,59 @@ export class DatabaseStorage implements IStorage {
   // Search functionality
   async searchTracks(query: string): Promise<Track[]> {
     const lowercaseQuery = query.toLowerCase();
+    const searchPattern = `%${lowercaseQuery}%`;
+    
     return await db.select().from(tracks)
       .where(
-        sql`LOWER(${tracks.title}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${tracks.artistName}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${tracks.genre}) LIKE ${`%${lowercaseQuery}%`}`
+        or(
+          like(sql`LOWER(${tracks.title})`, searchPattern),
+          like(sql`LOWER(${tracks.artistName})`, searchPattern),
+          like(sql`LOWER(${tracks.genre})`, searchPattern)
+        )
       )
       .limit(10);
   }
   
   async searchUsers(query: string): Promise<User[]> {
     const lowercaseQuery = query.toLowerCase();
+    const searchPattern = `%${lowercaseQuery}%`;
+    
     return await db.select().from(users)
       .where(
-        sql`LOWER(${users.username}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${users.displayName}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${users.bio}) LIKE ${`%${lowercaseQuery}%`}`
+        or(
+          like(sql`LOWER(${users.username})`, searchPattern),
+          like(sql`LOWER(${users.displayName})`, searchPattern),
+          like(sql`LOWER(${users.bio})`, searchPattern)
+        )
       )
       .limit(10);
   }
   
   async searchStreams(query: string): Promise<Stream[]> {
     const lowercaseQuery = query.toLowerCase();
+    const searchPattern = `%${lowercaseQuery}%`;
+    
     return await db.select().from(streams)
       .where(
-        sql`LOWER(${streams.title}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${streams.description}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${streams.category}) LIKE ${`%${lowercaseQuery}%`}`
+        or(
+          like(sql`LOWER(${streams.title})`, searchPattern),
+          like(sql`LOWER(${streams.description})`, searchPattern),
+          like(sql`LOWER(${streams.category})`, searchPattern)
+        )
       )
       .limit(10);
   }
   
   async searchPosts(query: string): Promise<Post[]> {
     const lowercaseQuery = query.toLowerCase();
+    const searchPattern = `%${lowercaseQuery}%`;
+    
     return await db.select().from(posts)
       .where(
-        sql`LOWER(${posts.title}) LIKE ${`%${lowercaseQuery}%`} OR 
-            LOWER(${posts.content}) LIKE ${`%${lowercaseQuery}%`}`
+        or(
+          like(sql`LOWER(${posts.title})`, searchPattern),
+          like(sql`LOWER(${posts.content})`, searchPattern)
+        )
       )
       .limit(10);
   }

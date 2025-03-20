@@ -22,6 +22,7 @@ import fs from "fs";
 import { checkCloudflareService } from './services/cloudflare';
 import { log } from "./vite";
 import WebSocket, { WebSocketServer } from "ws";
+import { db } from "./db";
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -1368,7 +1369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
-  // Search endpoint
+  // Main search endpoint - search all content types
   app.get("/api/search", async (req, res) => {
     const query = req.query.q as string;
     if (!query) {
@@ -1388,6 +1389,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ...results[2].map(r => ({ ...r, type: 'stream' })),
       ...results[3].map(r => ({ ...r, type: 'post' }))
     ]);
+  });
+  
+  // Specific search endpoints for each content type
+  app.get("/api/search/tracks", async (req, res) => {
+    const query = req.query.query as string;
+    if (!query) {
+      return res.status(400).json({ message: "Query parameter required" });
+    }
+    
+    try {
+      const results = await storage.searchTracks(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching tracks:", error);
+      res.status(500).json({ message: "Error searching tracks" });
+    }
+  });
+  
+  app.get("/api/search/users", async (req, res) => {
+    const query = req.query.query as string;
+    if (!query) {
+      return res.status(400).json({ message: "Query parameter required" });
+    }
+    
+    try {
+      const results = await storage.searchUsers(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Error searching users" });
+    }
+  });
+  
+  app.get("/api/search/streams", async (req, res) => {
+    const query = req.query.query as string;
+    if (!query) {
+      return res.status(400).json({ message: "Query parameter required" });
+    }
+    
+    try {
+      const results = await storage.searchStreams(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching streams:", error);
+      res.status(500).json({ message: "Error searching streams" });
+    }
+  });
+  
+  app.get("/api/search/posts", async (req, res) => {
+    const query = req.query.query as string;
+    if (!query) {
+      return res.status(400).json({ message: "Query parameter required" });
+    }
+    
+    try {
+      const results = await storage.searchPosts(query);
+      res.json(results);
+    } catch (error) {
+      console.error("Error searching posts:", error);
+      res.status(500).json({ message: "Error searching posts" });
+    }
   });
 
   // Analytics endpoints
