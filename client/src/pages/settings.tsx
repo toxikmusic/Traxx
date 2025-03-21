@@ -539,14 +539,19 @@ export default function SettingsPage() {
                         Increases contrast for better readability and accessibility
                       </p>
                     </div>
-                    <Switch
-                      id="high-contrast"
-                      checked={enableHighContrast}
-                      onCheckedChange={(checked) => {
-                        setEnableHighContrast(checked);
-                        setHighContrastMode(checked);
-                      }}
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {enableHighContrast ? "On" : "Off"}
+                      </span>
+                      <Switch
+                        id="high-contrast"
+                        checked={enableHighContrast}
+                        onCheckedChange={(checked) => {
+                          setEnableHighContrast(checked);
+                          setHighContrastMode(checked);
+                        }}
+                      />
+                    </div>
                   </div>
                   
                   {enableHighContrast && (
@@ -554,6 +559,7 @@ export default function SettingsPage() {
                       <div className="font-medium">High Contrast Mode Active</div>
                       <p className="text-xs mt-1">
                         This mode overrides your color selection to provide maximum readability.
+                        Toggle the switch to "Off" to disable high contrast mode.
                       </p>
                     </div>
                   )}
@@ -569,6 +575,19 @@ export default function SettingsPage() {
                   setPrimaryColor(DEFAULT_PRIMARY_COLOR);
                   setEnableHighContrast(false);
                   setHighContrastMode(false);
+                  
+                  // Save reset settings to database
+                  if (user) {
+                    const defaultSettings = {
+                      uiColor: DEFAULT_PRIMARY_COLOR,
+                      enableAutoplay: true,
+                      defaultSortType: "recent",
+                      highContrastMode: false
+                    };
+                    
+                    updateSettingsMutation.mutate(defaultSettings);
+                  }
+                  
                   toast({
                     title: "Settings Reset",
                     description: "Appearance settings have been reset to defaults.",

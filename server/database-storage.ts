@@ -269,7 +269,8 @@ export class DatabaseStorage implements IStorage {
         userId,
         uiColor: settings.uiColor || "#8B5CF6",
         enableAutoplay: settings.enableAutoplay !== undefined ? settings.enableAutoplay : true,
-        defaultSortType: settings.defaultSortType || "recent"
+        defaultSortType: settings.defaultSortType || "recent",
+        highContrastMode: settings.highContrastMode !== undefined ? settings.highContrastMode : false
       });
     }
 
