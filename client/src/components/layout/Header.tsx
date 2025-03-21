@@ -29,13 +29,12 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-dark-200 border-b border-dark-100 py-3 px-4 absolute top-0 w-full z-50">
+      <header className="bg-background border-b themed-border py-3 px-4 absolute top-0 w-full z-50">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/">
-                {/* <img src="/logo.png" alt="Traxx" className="h-20 w-full" /> */}
-            
+            <Link href="/" className="text-primary font-bold text-xl flex items-center">
+                <span className="themed-text-gradient">TRAXX</span>
             </Link>
           </div>
           
@@ -46,18 +45,18 @@ export default function Header() {
           
           {/* Navigation buttons */}
           <div className="flex items-center space-x-4">
-            <button className="md:hidden text-gray-400" onClick={toggleMobileSearch}>
-              <Search size={20} />
+            <button className="md:hidden text-muted-foreground hover:text-primary transition-colors" onClick={toggleMobileSearch}>
+              <Search className="themed-icon" size={20} />
             </button>
             
-            <Link href="/discover" className="hidden md:flex items-center text-gray-400 hover:text-primary transition">
-              <Compass className="mr-1" size={18} />
+            <Link href="/discover" className="hidden md:flex items-center text-muted-foreground hover:text-primary transition-colors">
+              <Compass className="mr-1 themed-icon" size={18} />
               <span>Discover</span>
             </Link>
             
             <Button 
               variant="default" 
-              className="bg-secondary hover:bg-secondary/80 text-white" 
+              className="bg-primary hover:bg-primary/80 text-primary-foreground" 
               onClick={() => setLocation("/go-live")}
             >
               <Video className="mr-1" size={18} />
@@ -67,13 +66,13 @@ export default function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger className="focus:outline-none">
                 <div className="flex items-center space-x-2">
-                  <Avatar className="w-8 h-8 border border-dark-100">
+                  <Avatar className="w-8 h-8 border-2 themed-border ring-2 ring-primary/20">
                     {user?.profileImageUrl ? (
                       <AvatarImage src={user.profileImageUrl} />
                     ) : null}
-                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                   </Avatar>
-                  <ChevronDown className="h-4 w-4 text-gray-400 hidden md:block" />
+                  <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -110,7 +109,7 @@ export default function Header() {
       
       {/* Mobile search bar */}
       {mobileSearchOpen && (
-        <div className="md:hidden px-4 pt-16 pb-2 bg-dark-200 fixed w-full z-40">
+        <div className="md:hidden px-4 pt-16 pb-2 bg-background border-b themed-border fixed w-full z-40">
           <SearchBar />
         </div>
       )}

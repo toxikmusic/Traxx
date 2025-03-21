@@ -120,7 +120,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
       <div 
         className={cn(
           "p-4 rounded-lg group hover:bg-muted transition cursor-pointer border",
-          isCurrentTrack ? "border-primary bg-muted" : "border-border"
+          isCurrentTrack ? "border-primary card-border-accent bg-muted" : "border-border"
         )}
       >
         <div className="flex space-x-3">
@@ -254,7 +254,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               <div className="h-1.5 bg-muted-foreground/20 rounded-full overflow-hidden">
                 <div 
                   className={cn(
-                    "h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-300",
+                    "h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-300 audio-progress-bar",
                     isCurrentTrack ? "w-1/2" : "w-0 group-hover:w-full"
                   )}
                 ></div>

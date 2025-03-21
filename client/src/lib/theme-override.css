@@ -1,0 +1,236 @@
+/**
+ * Theme Override Styles
+ * 
+ * This CSS file contains override styles to ensure the theme color
+ * is properly applied to all header elements, buttons, and borders
+ * throughout the application.
+ */
+
+/* Apply theme color to all headings with gradient effect */
+.custom-theme h1,
+.custom-theme h2,
+.custom-theme h3,
+.custom-theme .card-title,
+.custom-theme .heading {
+  background: linear-gradient(to right, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Standard headings without gradient */
+.custom-theme .text-heading {
+  color: var(--primary);
+}
+
+/* Apply theme color to all borders when appropriate */
+.custom-theme .border-themed {
+  border-color: var(--primary);
+}
+
+/* Custom outline for buttons */
+.custom-theme .btn-outline,
+.custom-theme button[variant="outline"] {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Enhance focus states */
+.custom-theme *:focus-visible {
+  outline-color: var(--primary);
+}
+
+/* Tab indicators */
+.custom-theme [role="tab"][data-state="active"] {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Navigation links */
+.custom-theme .nav-link:hover,
+.custom-theme .nav-link.active {
+  color: var(--primary);
+}
+
+/* Custom gradient backgrounds */
+.custom-theme .gradient-bg {
+  background: linear-gradient(to right, var(--gradient-from), var(--gradient-to));
+}
+
+/* Special UI element highlighting */
+.custom-theme .highlight {
+  color: var(--primary);
+}
+
+/* Progress bars, sliders and other interactive elements */
+.custom-theme progress::-webkit-progress-value,
+.custom-theme .progress-indicator,
+.custom-theme [role="progressbar"] > div,
+.custom-theme .slider-thumb,
+.custom-theme .range-slider-track {
+  background-color: var(--primary);
+}
+
+/* Audio player controls and wave visualization */
+.custom-theme .audio-control-active,
+.custom-theme .audio-wave-bar {
+  color: var(--primary);
+}
+
+/* Enhanced player styling */
+.custom-theme .player-container {
+  box-shadow: 0 -1px 10px rgba(0, 0, 0, 0.1);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.custom-theme .player-cover-art {
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+/* Slider customization */
+.custom-theme .themed-slider .slider-track {
+  background-color: color-mix(in srgb, var(--primary) 30%, var(--muted));
+  height: 4px;
+}
+
+.custom-theme .themed-slider .slider-range {
+  background-color: var(--primary);
+}
+
+.custom-theme .themed-slider .slider-thumb {
+  background-color: var(--primary);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--background);
+}
+
+.custom-theme .audio-progress-bar .slider-range {
+  background: linear-gradient(to right, color-mix(in srgb, var(--primary) 70%, transparent), var(--primary));
+}
+
+.custom-theme .volume-slider .slider-range {
+  background-color: var(--primary);
+}
+
+/* Stream cards and live indicators */
+.custom-theme .stream-live-badge {
+  background-color: var(--primary);
+}
+
+.custom-theme .card-border-accent {
+  border-color: var(--primary);
+  border-left-width: 4px;
+}
+
+/* Theme-colored icons */
+.custom-theme .themed-icon {
+  color: var(--primary);
+}
+
+/* Custom badges */
+.custom-theme .badge-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Inputs and form elements */
+.custom-theme input:focus,
+.custom-theme textarea:focus,
+.custom-theme select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+/* Table headers */
+.custom-theme th {
+  color: var(--primary);
+}
+
+/* Card highlights */
+.custom-theme .card-highlight {
+  border-top: 3px solid var(--primary);
+}
+
+/* Sidebar and navigation elements */
+.custom-theme .sidebar-active {
+  background-color: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-left: 3px solid var(--primary);
+}
+
+/* Hover effects */
+.custom-theme .hover-effect:hover {
+  color: var(--primary);
+}
+
+/* Text gradients for logos and featured text */
+.custom-theme .themed-text-gradient {
+  background: linear-gradient(to right, var(--primary), color-mix(in srgb, var(--primary) 70%, white));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Themed borders for cards, headers, and separators */
+.custom-theme .themed-border {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+}
+
+/* Avatar highlight effects */
+.custom-theme .avatar-highlight {
+  border: 2px solid var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* Apply to specific UI components from shadcn */
+.custom-theme .bg-primary {
+  background-color: var(--primary);
+}
+
+.custom-theme .text-primary {
+  color: var(--primary);
+}
+
+.custom-theme .tabs-underline > [data-state=active] {
+  border-bottom-color: var(--primary);
+}
+
+/* High contrast mode enhancements */
+.high-contrast .themed-border {
+  border-color: var(--primary);
+  border-width: 2px;
+}
+
+.high-contrast .themed-text-gradient {
+  background: var(--primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 1px rgba(0,0,0,0.5);
+}
+
+/* High contrast audio player enhancements */
+.high-contrast .player-container {
+  border-top-width: 2px;
+  border-color: #FFFFFF;
+}
+
+.high-contrast .audio-progress-bar .slider-range,
+.high-contrast .volume-slider .slider-range {
+  background-color: #FFFF00; /* High visibility yellow */
+}
+
+.high-contrast .audio-progress-bar .slider-thumb,
+.high-contrast .volume-slider .slider-thumb {
+  background-color: #FFFFFF;
+  border: 2px solid #000000;
+  width: 16px;
+  height: 16px;
+}
+
+.high-contrast .player-cover-art {
+  border: 2px solid #FFFFFF;
+}
+
+.high-contrast .audio-control-active {
+  color: #FFFF00;
+}

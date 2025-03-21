@@ -116,12 +116,33 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--muted', HIGH_CONTRAST_COLORS.muted);
     root.style.setProperty('--muted-foreground', HIGH_CONTRAST_COLORS.foreground);
     
+    // Set focus and accent colors
+    root.style.setProperty('--ring', HIGH_CONTRAST_COLORS.primary);
+    root.style.setProperty('--focus', HIGH_CONTRAST_COLORS.primary);
+    root.style.setProperty('--accent', HIGH_CONTRAST_COLORS.primary);
+    root.style.setProperty('--accent-foreground', '#000000');
+    
+    // Set additional shade variables
+    root.style.setProperty('--primary-50', '#FFFFCC');  // Very light yellow
+    root.style.setProperty('--primary-900', '#DDDD00');  // Dark yellow
+    
+    // Apply to gradients - in high contrast we prefer solid colors
+    root.style.setProperty('--gradient-from', HIGH_CONTRAST_COLORS.primary);
+    root.style.setProperty('--gradient-to', HIGH_CONTRAST_COLORS.primary);
+    
     // Increase text size and contrast
     root.style.setProperty('--font-size-base', '1.05rem');
     root.style.setProperty('--letter-spacing', '0.025em');
     
+    // Increase border widths for better visibility
+    root.style.setProperty('--border-width', '2px');
+    
+    // Remove custom theme class if it exists
+    document.body.classList.remove('custom-theme');
+    
     // Add a high-contrast class to the body for additional CSS targeting
     document.body.classList.add('high-contrast');
+    document.body.classList.add('custom-theme');  // Keep the custom-theme class to maintain styling
     
     // Update theme.json
     const themeData = {
@@ -132,18 +153,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
     
     localStorage.setItem('theme', JSON.stringify(themeData));
+    console.log("High contrast mode applied with primary color:", HIGH_CONTRAST_COLORS.primary);
   };
   
   // Update CSS variables when primary color changes
   const updateCssVariables = (color: string) => {
     const root = document.documentElement;
-    root.style.setProperty('--primary', color);
     
     // Remove high contrast class if it exists
     document.body.classList.remove('high-contrast');
     
     // Create variations of the primary color (lighter and darker shades)
-    // These are approximations - a proper color library would be better for production
     const lightenColor = (color: string, percent: number): string => {
       const num = parseInt(color.replace('#', ''), 16);
       const amt = Math.round(2.55 * percent);
@@ -159,14 +179,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       ).toString(16).slice(1);
     };
     
-    // Set foreground text color based on primary
-    root.style.setProperty('--primary-foreground', '#ffffff');
+    // Calculate if the color is light or dark to determine appropriate foreground color
+    const isLightColor = (color: string): boolean => {
+      const hex = color.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness > 155; // Threshold for determining light vs dark
+    };
+    
+    // Set text color based on background brightness
+    const textColor = isLightColor(color) ? '#000000' : '#ffffff';
     
     // Reset font size and spacing
     root.style.setProperty('--font-size-base', '1rem');
     root.style.setProperty('--letter-spacing', 'normal');
     
-    // Create a scale of shades
+    // Set main color variables
+    root.style.setProperty('--primary', color);
+    root.style.setProperty('--primary-foreground', textColor);
+    
+    // Create a scale of shades for more comprehensive theming
     root.style.setProperty('--primary-50', lightenColor(color, 90));
     root.style.setProperty('--primary-100', lightenColor(color, 80));
     root.style.setProperty('--primary-200', lightenColor(color, 60));
@@ -178,6 +212,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--primary-800', lightenColor(color, -60));
     root.style.setProperty('--primary-900', lightenColor(color, -80));
     
+    // Apply color to additional UI elements
+    root.style.setProperty('--ring', color); // Focus rings
+    root.style.setProperty('--border-hover', lightenColor(color, 20)); // Border hover state
+    
+    // Update accent colors to match the primary
+    root.style.setProperty('--accent', lightenColor(color, -10));
+    root.style.setProperty('--accent-foreground', textColor);
+    
+    // Apply to gradients
+    const gradientTo = lightenColor(color, 30);
+    const gradientFrom = lightenColor(color, -30);
+    root.style.setProperty('--gradient-from', gradientFrom);
+    root.style.setProperty('--gradient-to', gradientTo);
+    
+    // Apply to some element states
+    root.style.setProperty('--focus-visible-ring', color);
+    
+    // Add a custom CSS class to the body to allow targeting specific elements
+    document.body.classList.add('custom-theme');
+    document.body.style.setProperty('--theme-color', color);
+    
     // Update theme.json
     const themeData = {
       primary: color,
@@ -186,8 +241,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       radius: 0.5
     };
     
-    // In a real app, this would be persisted to the server
     localStorage.setItem('theme', JSON.stringify(themeData));
+    
+    console.log("Theme updated with color:", color);
   };
   
   const handlePrimaryColorChange = (color: string) => {

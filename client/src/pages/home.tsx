@@ -71,25 +71,25 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 py-5">
             {/* Your Content Section (if user is logged in) */}
             {user && (
-              <section className="mb-10 bg-dark-200 rounded-lg p-6">
+              <section className="mb-10 bg-dark-200 rounded-lg p-6 border-l-4 border-primary">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold"></h2>
-                  <div className="flex space-x-2">
+                  <h2 className="text-2xl font-bold text-primary">Your Creative Space</h2>
+                  <div className="flex flex-wrap gap-2">
                     <Link href="/upload-track">
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <MusicIcon size={16} />
+                      <Button variant="outline" size="sm" className="flex items-center gap-2 border-primary text-primary hover:bg-primary/10">
+                        <MusicIcon size={16} className="themed-icon" />
                         <span>Upload Track</span>
                       </Button>
                     </Link>
                     <Link href="/go-live">
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <RadioIcon size={16} />
+                      <Button variant="outline" size="sm" className="flex items-center gap-2 border-primary text-primary hover:bg-primary/10">
+                        <RadioIcon size={16} className="themed-icon" />
                         <span>Go Live</span>
                       </Button>
                     </Link>
                     <Link href="/posts/new">
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <Pencil size={16} />
+                      <Button variant="outline" size="sm" className="flex items-center gap-2 border-primary text-primary hover:bg-primary/10">
+                        <Pencil size={16} className="themed-icon" />
                         <span>Create Post</span>
                       </Button>
                     </Link>
@@ -99,7 +99,9 @@ export default function Home() {
                 {/* User's Tracks */}
                 {userTracks && userTracks.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Your Tracks</h3>
+                    <h3 className="text-lg font-semibold mb-3 text-primary">
+                      <span className="border-b-2 border-primary pb-1">Your Tracks</span>
+                    </h3>
                     <div className="space-y-3">
                       {userTracksLoading ? (
                         <Skeleton className="h-20 w-full" />
@@ -115,7 +117,9 @@ export default function Home() {
                 {/* User's Posts */}
                 {userPosts && userPosts.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-3">Your Posts</h3>
+                    <h3 className="text-lg font-semibold mb-3 text-primary">
+                      <span className="border-b-2 border-primary pb-1">Your Posts</span>
+                    </h3>
                     <div className="space-y-4">
                       {postsLoading ? (
                         <Skeleton className="h-32 w-full" />
@@ -134,11 +138,11 @@ export default function Home() {
                 {/* Empty State */}
                 {(!userTracks || userTracks.length === 0) && (!userPosts || userPosts.length === 0) && (
                   <div className="text-center py-10">
-                    <h3 className="text-xl font-medium mb-2">Share your music with the world</h3>
+                    <h3 className="text-xl font-medium mb-2 text-primary">Share your music with the world</h3>
                     <p className="text-gray-400 mb-4">Upload tracks, go live, or create posts to get started</p>
                     <div className="flex justify-center space-x-3">
                       <Link href="/upload-track">
-                        <Button className="flex items-center gap-2">
+                        <Button className="flex items-center gap-2 bg-primary hover:bg-primary/80">
                           <MusicIcon size={16} />
                           <span>Upload Your First Track</span>
                         </Button>
@@ -152,8 +156,8 @@ export default function Home() {
             {/* Featured streams section */}
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Featured Live Streams</h2>
-                <Link href="/streams" className="text-sm text-primary hover:underline">
+                <h2 className="text-xl font-bold border-l-4 border-primary pl-3">Featured Live Streams</h2>
+                <Link href="/streams" className="text-sm text-primary hover:underline hover-effect">
                   See All
                 </Link>
               </div>
@@ -192,8 +196,8 @@ export default function Home() {
             {/* Recent tracks section */}
             <section className="mb-10">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Recent Uploads</h2>
-                <Link href="/tracks" className="text-sm text-primary hover:underline">
+                <h2 className="text-xl font-bold border-l-4 border-primary pl-3">Recent Uploads</h2>
+                <Link href="/tracks" className="text-sm text-primary hover:underline hover-effect">
                   See All
                 </Link>
               </div>
@@ -228,11 +232,11 @@ export default function Home() {
                     <TrackCard key={track.id} track={track} />
                   ))
                 ) : (
-                  <div className="text-center py-10 bg-dark-200 rounded-lg">
+                  <div className="text-center py-10 bg-dark-200 rounded-lg border border-dark-100">
                     <h3 className="text-lg font-medium mb-2">No tracks uploaded yet</h3>
                     <p className="text-gray-400 mb-4">Be the first to share your music</p>
                     <Link href="/upload-track">
-                      <Button>Upload Track</Button>
+                      <Button className="bg-primary hover:bg-primary/80">Upload Track</Button>
                     </Link>
                   </div>
                 )}
@@ -242,8 +246,8 @@ export default function Home() {
             {/* Discover creators section */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Discover Creators</h2>
-                <Link href="/discover" className="text-sm text-primary hover:underline">
+                <h2 className="text-xl font-bold border-l-4 border-primary pl-3">Discover Creators</h2>
+                <Link href="/discover" className="text-sm text-primary hover:underline hover-effect">
                   See All
                 </Link>
               </div>
