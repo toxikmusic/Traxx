@@ -161,7 +161,7 @@ export default function LikeButton({
       className={cn(
         "gap-1 group transition-all", 
         sizeMap[size].buttonClass,
-        isLiked && "bg-pink-100 hover:bg-pink-200 dark:bg-pink-900/30 dark:hover:bg-pink-900/50 text-pink-600 dark:text-pink-500 border-pink-200 dark:border-pink-900",
+        isLiked && "bg-primary/10 hover:bg-primary/20 text-primary border-primary/20",
         className
       )}
       onClick={handleLikeClick}
@@ -170,18 +170,18 @@ export default function LikeButton({
       {isLiked ? (
         <Heart 
           size={sizeMap[size].iconSize} 
-          className="fill-pink-500 text-pink-500 mr-1"
+          className="fill-primary text-primary mr-1"
         />
       ) : (
         <Heart 
           size={sizeMap[size].iconSize} 
-          className="text-gray-500 dark:text-gray-400 group-hover:text-pink-500 mr-1"
+          className="text-muted-foreground group-hover:text-primary mr-1 transition-colors"
         />
       )}
       {showCount && (
         <span className={cn(
           sizeMap[size].fontSize,
-          isLiked ? "text-pink-600 dark:text-pink-500" : "text-gray-700 dark:text-gray-300"
+          isLiked ? "text-primary font-medium" : "text-muted-foreground"
         )}>
           {likeCount}
         </span>

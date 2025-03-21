@@ -119,8 +119,8 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
     <>
       <div 
         className={cn(
-          "p-4 rounded-lg group hover:bg-muted transition cursor-pointer border",
-          isCurrentTrack ? "border-primary card-border-accent bg-muted" : "border-border"
+          "p-4 rounded-lg group hover:bg-primary/5 transition cursor-pointer border",
+          isCurrentTrack ? "border-primary card-border-accent bg-primary/5" : "border-primary/10"
         )}
       >
         <div className="flex space-x-3">
@@ -129,14 +129,26 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               <img 
                 src={track.coverUrl}
                 alt={track.title} 
-                className="w-16 h-16 object-cover rounded shadow-md" 
+                className={cn(
+                  "w-16 h-16 object-cover rounded-md shadow-md",
+                  isCurrentTrack ? "border-2 border-primary" : "border border-primary/20"
+                )} 
               />
             ) : (
-              <div className="w-16 h-16 rounded flex items-center justify-center bg-muted shadow-md">
-                <Music className="h-8 w-8 text-muted-foreground" />
+              <div className={cn(
+                "w-16 h-16 rounded-md flex items-center justify-center shadow-md",
+                isCurrentTrack ? "bg-primary/20 border-2 border-primary" : "bg-primary/5 border border-primary/20"
+              )}>
+                <Music className={cn(
+                  "h-8 w-8", 
+                  isCurrentTrack ? "text-primary" : "text-primary/60"
+                )} />
               </div>
             )}
-            <button className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded" onClick={handlePlayClick}> {/*Added onClick*/}
+            <button 
+              className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded-md hover:bg-primary/40" 
+              onClick={handlePlayClick}
+            >
               {isCurrentTrack && isPlaying ? (
                 <Pause className="h-6 w-6 text-white" />
               ) : (
@@ -144,7 +156,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               )}
             </button>
             {showBadge && (
-              <Badge className="absolute -top-2 -right-2 px-2 py-1">
+              <Badge className="absolute -top-2 -right-2 px-2 py-1 bg-primary text-white">
                 New
               </Badge>
             )}
@@ -153,12 +165,20 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
           <div className="flex-1">
             <div className="flex justify-between">
               <div>
-                <h3 className="font-medium line-clamp-1">{track.title}</h3>
-                <Link href={`/profile/${track.userId}`} className="text-xs text-muted-foreground hover:text-primary transition">
+                <h3 className={cn(
+                  "font-medium line-clamp-1",
+                  isCurrentTrack ? "text-primary" : "hover:text-primary transition-colors"
+                )}>
+                  {track.title}
+                </h3>
+                <Link 
+                  href={`/profile/${track.userId}`}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
                   {track.artistName || "Unknown artist"}
                 </Link>
                 {track.genre && (
-                  <Badge variant="outline" className="mt-1 text-xs">
+                  <Badge variant="outline" className="mt-1 text-xs border-primary/30 hover:bg-primary/5">
                     {track.genre}
                   </Badge>
                 )}
@@ -170,7 +190,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button 
-                          className="text-muted-foreground hover:text-primary"
+                          className="text-muted-foreground hover:text-primary transition-colors"
                           onClick={handleAddToQueue}
                         >
                           <ListPlus size={16} />
@@ -183,7 +203,7 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                   </TooltipProvider>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button className="text-muted-foreground hover:text-primary">
+                      <button className="text-muted-foreground hover:text-primary transition-colors">
                         <MoreHorizontal size={16} />
                       </button>
                     </DropdownMenuTrigger>
@@ -235,9 +255,12 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-                <div className="flex items-center mt-1 space-x-3 text-muted-foreground text-xs">
-                  <span className="flex items-center">
-                    <Play className="h-3 w-3 mr-1" /> {playCount.toLocaleString()}
+                <div className="flex items-center mt-1 space-x-3 text-xs">
+                  <span className="flex items-center text-muted-foreground">
+                    <Play className={cn("h-3 w-3 mr-1", isCurrentTrack && "text-primary")} /> 
+                    <span className={isCurrentTrack ? "text-primary font-medium" : ""}>
+                      {playCount.toLocaleString()}
+                    </span>
                   </span>
                   <span className="flex items-center">
                     <LikeButton 
@@ -251,10 +274,10 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               </div>
             </div>
             <div className="mt-2">
-              <div className="h-1.5 bg-muted-foreground/20 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-primary/10 rounded-full overflow-hidden">
                 <div 
                   className={cn(
-                    "h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-300 audio-progress-bar",
+                    "h-full bg-gradient-to-r from-primary/70 to-primary transition-all duration-300 audio-progress-bar",
                     isCurrentTrack ? "w-1/2" : "w-0 group-hover:w-full"
                   )}
                 ></div>
@@ -266,16 +289,21 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="border-primary/20">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Track</AlertDialogTitle>
+            <AlertDialogTitle className="text-primary font-semibold">Delete Track</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{track.title}"? This action cannot be undone 
+              Are you sure you want to delete <span className="text-primary font-medium">"{track.title}"</span>? This action cannot be undone 
               and the track will be permanently removed from your library.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteTrackMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel 
+              disabled={deleteTrackMutation.isPending}
+              className="border-primary/20 hover:bg-primary/5 hover:text-primary"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={(e) => {
                 e.preventDefault();
@@ -284,7 +312,12 @@ export default function TrackCard({ track, showBadge = false }: TrackCardProps) 
               disabled={deleteTrackMutation.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
-              {deleteTrackMutation.isPending ? 'Deleting...' : 'Delete'}
+              {deleteTrackMutation.isPending ? (
+                <span className="flex items-center">
+                  <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-r-transparent"></span>
+                  Deleting...
+                </span>
+              ) : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
