@@ -756,7 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Extract only the fields we want to update
-      const allowedFields = ['uiColor', 'enableAutoplay', 'defaultSortType'];
+      const allowedFields = ['uiColor', 'enableAutoplay', 'defaultSortType', 'highContrastMode'];
       const settingsData: Record<string, any> = {};
 
       for (const field of allowedFields) {

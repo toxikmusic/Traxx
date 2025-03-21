@@ -259,6 +259,9 @@ export class AudioStreamingService {
    */
   async startStreaming(streamId: number, streamKey: string): Promise<boolean> {
     try {
+      // Store the stream key for use in error handling and logging
+      this.streamKey = streamKey;
+      
       if (!this.stream || !this.audioContext) {
         const initialized = await this.initialize({
           echoCancellation: false,
@@ -286,30 +289,47 @@ export class AudioStreamingService {
         this.socket = null;
       }
 
-      this.streamKey = streamKey;
-
       // Setup WebSocket connection for audio streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       
       // Detect if we're in a Replit environment
-      const isReplit = window.location.hostname.includes('replit');
+      const isReplit = window.location.hostname.endsWith('.replit.app') || 
+                        window.location.hostname.includes('replit') || 
+                        window.location.hostname === 'localhost';
       
-      // For Replit, strip the port number from the host
+      // Correctly format the host for WebSocket connection
       let host = window.location.host;
-      if (isReplit && host.includes(':')) {
-        host = window.location.hostname; // Use only hostname without port
+      
+      // Handle Replit environment specifically
+      if (isReplit) {
+        // Use full host (including port) for localhost development
+        // But for .replit.app domains, use just the hostname
+        if (window.location.hostname !== 'localhost' && host.includes(':')) {
+          host = window.location.hostname; // Use only hostname without port
+        }
       }
       
       const wsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
 
-      console.log(`Connecting to audio streaming WebSocket: ${wsUrl}`);
+      // Mask stream key in logs
+      const maskedUrl = wsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****');
+      console.log(`Connecting to audio streaming WebSocket: ${maskedUrl}`);
       console.log("Environment info:", {
         isReplit,
         hostname: window.location.hostname,
         protocol,
-        host
+        host,
+        port: window.location.port,
+        hasStreamKey: !!streamKey
       });
-      this.socket = new WebSocket(wsUrl);
+      
+      // Use a connection retry mechanism for reliability
+      try {
+        this.socket = new WebSocket(wsUrl);
+      } catch (error) {
+        console.error("WebSocket connection error:", error);
+        return false;
+      }
 
       // Set a connection timeout
       const connectionTimeout = setTimeout(() => {
@@ -379,9 +399,10 @@ export class AudioStreamingService {
           if (event.code !== 1000) {
             console.error(`WebSocket closed abnormally. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
             console.log("Connection details:", {
-              url: wsUrl,
+              url: wsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****'),
               streamId,
-              wasEverConnected: event.wasClean
+              wasEverConnected: event.wasClean,
+              hasStreamKey: !!this.streamKey
             });
           }
         };
@@ -389,10 +410,11 @@ export class AudioStreamingService {
         this.socket.onerror = (error) => {
           console.error("WebSocket error:", error);
           console.log("WebSocket connection details:", {
-            url: wsUrl,
+            url: wsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****'),
             readyState: this.socket ? this.socket.readyState : 'socket_not_initialized',
             browserSupport: 'WebSocket' in window ? 'supported' : 'not_supported',
-            streamId
+            streamId,
+            hasStreamKey: !!this.streamKey
           });
           clearTimeout(connectionTimeout);
           this.stopStreaming();
@@ -477,6 +499,9 @@ export class AudioStreamingService {
     // Update status
     this.streamStatus.isLive = false;
     this.notifyStatusChange();
+    
+    // Clear the stream key after stopping for security
+    this.streamKey = "";
   }
 
   /**

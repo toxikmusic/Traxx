@@ -115,12 +115,18 @@ export default function StreamPage() {
     // Setup WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     // Detect if we're in a Replit environment
-    const isReplit = window.location.hostname.includes('replit');
+    const isReplit = window.location.hostname.endsWith('.replit.app') || 
+                     window.location.hostname.includes('replit') || 
+                     window.location.hostname === 'localhost';
     
     // For Replit, strip the port number from the host
     let host = window.location.host;
-    if (isReplit && host.includes(':')) {
-      host = window.location.hostname; // Use only hostname without port
+    if (isReplit) {
+      // Use full host (including port) for localhost development
+      // But for .replit.app domains, use just the hostname
+      if (window.location.hostname !== 'localhost' && host.includes(':')) {
+        host = window.location.hostname; // Use only hostname without port
+      }
     }
     const wsUrl = `${protocol}//${host}/ws`;
     
@@ -244,15 +250,23 @@ export default function StreamPage() {
         
         // Handle WebSocket URL specially for Replit environment
         // Detect if we're in a Replit environment based on hostname
-        const isReplit = window.location.hostname.includes('replit');
+        const isReplit = window.location.hostname.endsWith('.replit.app') || 
+                       window.location.hostname.includes('replit') || 
+                       window.location.hostname === 'localhost';
         
         // In Replit, we must use the correct hostname without any extra port
-        // For Replit, strip the port number from the host
+        // For Replit environments
         let host = window.location.host;
-        if (isReplit && host.includes(':')) {
-          host = window.location.hostname; // Use only hostname without port
+        if (isReplit) {
+          // Use full host (including port) for localhost development
+          // But for .replit.app domains, use just the hostname
+          if (window.location.hostname !== 'localhost' && host.includes(':')) {
+            host = window.location.hostname; // Use only hostname without port
+          }
         }
-        const audioWsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=listener`;
+        // Include the stream key for authentication
+        const streamKey = stream?.streamKey || '';
+        const audioWsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=listener&streamKey=${streamKey}`;
         
         console.log("Environment info:", {
           isReplit,
@@ -372,10 +386,11 @@ export default function StreamPage() {
           setIsAudioConnected(false);
           console.error("Audio WebSocket error:", error);
           console.log("Connection details:", {
-            url: audioWsUrl,
+            url: audioWsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****'),
             readyState: audioSocket ? audioSocket.readyState : 'socket_not_initialized',
             streamId,
-            role: 'listener'
+            role: 'listener',
+            hasStreamKey: !!streamKey
           });
           toast({
             title: "Audio stream error",
