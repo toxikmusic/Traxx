@@ -1,0 +1,2 @@
+id,user_id,title,content,image_url,like_count,comment_count,post_type,created_at,updated_at,tags
+1,1,test,test,,0,0,text,2025-03-13 05:53:46.714944,2025-03-13 05:53:46.714944,
