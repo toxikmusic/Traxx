@@ -25,8 +25,42 @@ const HIGH_CONTRAST_COLORS = {
 };
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [primaryColor, setPrimaryColor] = useState(DEFAULT_PRIMARY_COLOR);
-  const [highContrastMode, setHighContrastMode] = useState(false);
+  // Function to get cached settings from localStorage
+  const getCachedSettings = () => {
+    try {
+      const themeCache = localStorage.getItem('traxx_theme_cache');
+      if (themeCache) {
+        return JSON.parse(themeCache);
+      }
+    } catch (e) {
+      console.error("Error parsing cached theme settings:", e);
+    }
+    return null;
+  };
+  
+  // Function to safely update the cache
+  const updateThemeCache = (updates: {uiColor?: string; highContrastMode?: boolean}) => {
+    try {
+      const currentCache = getCachedSettings() || {};
+      const updatedCache = { ...currentCache, ...updates };
+      localStorage.setItem('traxx_theme_cache', JSON.stringify(updatedCache));
+      console.log("Theme cache updated:", updatedCache);
+    } catch (e) {
+      console.error("Error updating theme cache:", e);
+    }
+  };
+  
+  // Get initial cached settings
+  const cachedSettings = getCachedSettings();
+  console.log("Initial cached settings:", cachedSettings);
+  
+  // Initialize with cached values if available, otherwise use defaults
+  const [primaryColor, setPrimaryColor] = useState(
+    cachedSettings?.uiColor || DEFAULT_PRIMARY_COLOR
+  );
+  const [highContrastMode, setHighContrastMode] = useState(
+    cachedSettings?.highContrastMode || false
+  );
   
   // Get the authenticated user
   const { user } = useAuth();
@@ -37,11 +71,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     enabled: !!user, // Only run the query if we have a user
   });
   
-  // Update theme when settings are loaded
+  // Apply cached theme on initial load
+  useEffect(() => {
+    console.log("Applying initial theme from cache:", highContrastMode, primaryColor);
+    if (highContrastMode) {
+      applyHighContrastMode();
+    } else {
+      updateCssVariables(primaryColor);
+    }
+  }, []);
+  
+  // Update theme when settings are loaded from server
   useEffect(() => {
     if (settings) {
+      console.log("Settings loaded from server:", settings);
       setPrimaryColor(settings.uiColor || DEFAULT_PRIMARY_COLOR);
       setHighContrastMode(settings.highContrastMode || false);
+      
+      // Update our cache with server settings
+      updateThemeCache({
+        uiColor: settings.uiColor || DEFAULT_PRIMARY_COLOR,
+        highContrastMode: settings.highContrastMode || false
+      });
       
       // Apply the appropriate theme
       if (settings.highContrastMode) {
@@ -142,6 +193,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const handlePrimaryColorChange = (color: string) => {
     setPrimaryColor(color);
     
+    // Update localStorage cache with the current color
+    updateThemeCache({ uiColor: color });
+    console.log("Color changed to:", color);
+    
     if (!highContrastMode) {
       updateCssVariables(color);
     }
@@ -149,6 +204,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   
   const handleHighContrastModeChange = (enabled: boolean) => {
     setHighContrastMode(enabled);
+    
+    // Update localStorage cache with the current high contrast setting
+    updateThemeCache({ highContrastMode: enabled });
+    console.log("High contrast mode changed to:", enabled);
     
     if (enabled) {
       applyHighContrastMode();

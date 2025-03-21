@@ -105,6 +105,18 @@ export default function SettingsPage() {
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
     setPrimaryColor(color);
+    
+    // Update cache for immediate feedback
+    try {
+      const cacheData = JSON.parse(localStorage.getItem('traxx_theme_cache') || '{}');
+      localStorage.setItem('traxx_theme_cache', JSON.stringify({
+        ...cacheData,
+        uiColor: color
+      }));
+      console.log("Color selection cached:", color);
+    } catch (e) {
+      console.error("Error caching color selection:", e);
+    }
   };
   
   const updateSettingsMutation = useMutation({
@@ -114,6 +126,18 @@ export default function SettingsPage() {
     },
     onSuccess: (updatedSettings) => {
       console.log("Settings update success, updated settings:", updatedSettings);
+      
+      // Update localStorage cache with the latest settings
+      try {
+        localStorage.setItem('traxx_theme_cache', JSON.stringify({
+          uiColor: updatedSettings.uiColor,
+          highContrastMode: updatedSettings.highContrastMode
+        }));
+        console.log("Settings cache updated from server response:", updatedSettings);
+      } catch (e) {
+        console.error("Error saving settings to localStorage:", e);
+      }
+      
       if (user) {
         queryClient.invalidateQueries({ queryKey: ['/api/user-settings', user.id] });
         toast({
@@ -549,6 +573,18 @@ export default function SettingsPage() {
                         onCheckedChange={(checked) => {
                           setEnableHighContrast(checked);
                           setHighContrastMode(checked);
+                          
+                          // Also update localStorage for immediate feedback
+                          try {
+                            const cacheData = JSON.parse(localStorage.getItem('traxx_theme_cache') || '{}');
+                            localStorage.setItem('traxx_theme_cache', JSON.stringify({
+                              ...cacheData,
+                              highContrastMode: checked
+                            }));
+                            console.log("High contrast mode cached:", checked);
+                          } catch (e) {
+                            console.error("Error caching high contrast mode:", e);
+                          }
                         }}
                       />
                     </div>
@@ -575,6 +611,17 @@ export default function SettingsPage() {
                   setPrimaryColor(DEFAULT_PRIMARY_COLOR);
                   setEnableHighContrast(false);
                   setHighContrastMode(false);
+                  
+                  // Update localStorage cache with default settings
+                  try {
+                    localStorage.setItem('traxx_theme_cache', JSON.stringify({
+                      uiColor: DEFAULT_PRIMARY_COLOR,
+                      highContrastMode: false
+                    }));
+                    console.log("Theme cache reset to defaults");
+                  } catch (e) {
+                    console.error("Error resetting theme cache:", e);
+                  }
                   
                   // Save reset settings to database
                   if (user) {
