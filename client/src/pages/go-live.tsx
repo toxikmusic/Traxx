@@ -30,9 +30,6 @@ import { useAuth } from '@/hooks/use-auth';
 const streamFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters" }),
   description: z.string().optional(),
-  category: z.string().optional(),
-  tags: z.string().optional(),
-  thumbnailUrl: z.string().url({ message: "Please enter a valid URL" }).optional().or(z.literal("")),
   saveStream: z.boolean().default(true),
 });
 
@@ -123,9 +120,6 @@ export default function GoLivePage() {
     defaultValues: {
       title: "",
       description: "",
-      category: "",
-      tags: "",
-      thumbnailUrl: "",
       saveStream: true,
     }
   });
@@ -284,16 +278,10 @@ export default function GoLivePage() {
   // Stream creation mutation
   const createStreamMutation = useMutation({
     mutationFn: (data: StreamFormValues) => {
-      // Process tags if provided
-      const tagArray = data.tags ? data.tags.split(",").map(tag => tag.trim()) : [];
-
       // Create stream data object
       const streamData: Partial<Stream> = {
         title: data.title,
         description: data.description || null,
-        category: data.category || null,
-        tags: tagArray.length > 0 ? tagArray : null,
-        thumbnailUrl: data.thumbnailUrl || null,
         userId: userId,
         isLive: true,
         viewerCount: 0,
@@ -375,57 +363,6 @@ export default function GoLivePage() {
                                 placeholder="Describe what your stream is about" 
                                 rows={4} 
                                 {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Category</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="e.g. Electronic, Hip-Hop, Production" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="tags"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tags (comma separated)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="e.g. live production, house, remix" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="thumbnailUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Thumbnail URL</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="https://example.com/thumbnail.jpg" 
-                                {...field} 
                               />
                             </FormControl>
                             <FormMessage />

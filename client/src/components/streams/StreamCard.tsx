@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Users } from "lucide-react";
+import { Users, Trash2 } from "lucide-react";
 import { Stream } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteStream } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface StreamCardProps {
   stream: Stream;
@@ -11,6 +14,38 @@ interface StreamCardProps {
 }
 
 export default function StreamCard({ stream, isOwner = false }: StreamCardProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Delete stream mutation
+  const deleteStreamMutation = useMutation({
+    mutationFn: () => deleteStream(stream.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/streams/featured'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/streams/user'] });
+      toast({
+        title: 'Stream deleted',
+        description: 'The stream has been successfully deleted',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete stream',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handle delete button click
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this stream?')) {
+      deleteStreamMutation.mutate();
+    }
+  };
+
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       <CardHeader className="p-0">
@@ -61,11 +96,23 @@ export default function StreamCard({ stream, isOwner = false }: StreamCardProps)
             </div>
             <span className="text-sm">Creator {stream.userId}</span>
           </div>
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/stream/${stream.id}`}>
-              {stream.isLive ? 'Join Stream' : 'View Details'}
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            {isOwner && (
+              <Button 
+                size="sm" 
+                variant="destructive" 
+                onClick={handleDelete}
+                disabled={deleteStreamMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/stream/${stream.id}`}>
+                {stream.isLive ? 'Join Stream' : 'View Details'}
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
