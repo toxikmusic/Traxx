@@ -28,12 +28,8 @@ type ChatMessage = {
 };
 
 export default function StreamPage() {
-  // Check both singular and plural stream routes
-  const [matchSingular, paramsSingular] = useRoute("/stream/:id");
-  const [matchPlural, paramsPlural] = useRoute("/streams/:id");
-  
-  // Use params from whichever route matched
-  const params = matchSingular ? paramsSingular : paramsPlural;
+  // Get stream ID from URL
+  const [match, params] = useRoute("/stream/:id");
   const streamId = params?.id ? parseInt(params.id) : undefined;
   
   const videoRef = useRef<HTMLVideoElement>(null);
