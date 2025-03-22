@@ -654,6 +654,9 @@ const LiveStream = ({ initialStreamId }: LiveStreamProps) => {
         track.enabled = !videoEnabled;
       });
       setVideoEnabled(!videoEnabled);
+    } else {
+      // If no localStream yet, just toggle the state
+      setVideoEnabled(!videoEnabled);
     }
   };
 
@@ -663,6 +666,9 @@ const LiveStream = ({ initialStreamId }: LiveStreamProps) => {
       localStreamRef.current.getAudioTracks().forEach(track => {
         track.enabled = !audioEnabled;
       });
+      setAudioEnabled(!audioEnabled);
+    } else {
+      // If no localStream yet, just toggle the state
       setAudioEnabled(!audioEnabled);
     }
   };
