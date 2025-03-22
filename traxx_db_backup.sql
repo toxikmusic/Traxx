@@ -229,7 +229,7 @@ ALTER TABLE public.session OWNER TO neondb_owner;
 
 CREATE TABLE public.streams (
     id integer NOT NULL,
-    user_id integer NOT NULL,
+    user_id integer :NOT NULL,
     title text NOT NULL,
     description text,
     thumbnail_url text,
