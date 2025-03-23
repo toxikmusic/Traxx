@@ -13,11 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function ProfilePage() {
   const [, params] = useRoute("/profile/:username");
   const username = params?.username;
   const [isFollowing, setIsFollowing] = useState(false);
+  const { user: currentUser } = useAuth();
 
   // Fetch user data
   const { data: user, isLoading: userLoading } = useQuery<User>({
@@ -37,91 +39,23 @@ export default function ProfilePage() {
     enabled: !!user,
   });
 
-  // Mock data for initial render
-  const mockUser: User = {
-    id: 101,
-    username: "djshadow",
+  // Default state for loading or when data isn't available yet
+  const displayedUser = user || {
+    id: 0,
+    username: "",
     password: "",
-    displayName: "DJ Shadow",
-    bio: "Electronic music producer and DJ specializing in deep house and techno. Based in Berlin.",
-    profileImageUrl: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?ixlib=rb-1.2.1&auto=format&fit=crop&w=150&h=150&q=80",
-    isStreaming: true,
-    followerCount: 23400,
+    displayName: "Loading...",
+    bio: "Loading profile information...",
+    profileImageUrl: "", // This is a string, not null
+    isStreaming: false,
+    followerCount: 0,
     createdAt: new Date()
   };
-
-  const mockStreams: Stream[] = [
-    {
-      id: 1,
-      userId: 101,
-      title: "Late Night Beats",
-      description: "Chill beats for late night coding sessions",
-      thumbnailUrl: "https://images.unsplash.com/photo-1516873240891-4bf014598ab4?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
-      isLive: true,
-      viewerCount: 1245,
-      startedAt: new Date(),
-      category: "Electronic",
-      tags: ["Deep House", "Techno"]
-    },
-    {
-      id: 2,
-      userId: 101,
-      title: "Weekend Mix Session",
-      description: "House and techno for your weekend",
-      thumbnailUrl: "https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&h=340&q=80",
-      isLive: false,
-      viewerCount: 3467,
-      startedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      category: "House",
-      tags: ["House", "Weekend"]
-    }
-  ];
-
-  const mockTracks: Track[] = [
-    {
-      id: 1,
-      userId: 101,
-      title: "Midnight Groove",
-      artistName: "DJ Shadow",
-      coverUrl: "https://images.unsplash.com/photo-1557672172-298e090bd0f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1b8de8c112.mp3?filename=floating-abstract-142819.mp3",
-      duration: 243,
-      playCount: 5600,
-      likeCount: 876,
-      uploadedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      genre: "Deep House"
-    },
-    {
-      id: 2,
-      userId: 101,
-      title: "Berlin Nights",
-      artistName: "DJ Shadow",
-      coverUrl: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/10/25/audio_946b0939c8.mp3?filename=chill-out-12624.mp3",
-      duration: 198,
-      playCount: 4300,
-      likeCount: 651,
-      uploadedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      genre: "Techno"
-    },
-    {
-      id: 3,
-      userId: 101,
-      title: "Urban Flow",
-      artistName: "DJ Shadow",
-      coverUrl: "https://images.unsplash.com/photo-1504502350688-00f5d59bbdeb?ixlib=rb-1.2.1&auto=format&fit=crop&w=120&h=120&q=80",
-      audioUrl: "https://cdn.pixabay.com/download/audio/2022/05/16/audio_1333dfb36d.mp3?filename=lofi-study-112191.mp3",
-      duration: 217,
-      playCount: 2900,
-      likeCount: 432,
-      uploadedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-      genre: "House"
-    }
-  ];
-
-  const displayedUser = user || mockUser;
-  const displayedStreams = streams || mockStreams;
-  const displayedTracks = tracks || mockTracks;
+  const displayedStreams = streams || [];
+  const displayedTracks = tracks || [];
+  
+  // Check if current user is viewing their own profile
+  const isOwnProfile = currentUser?.id === user?.id;
 
   const toggleFollow = () => {
     setIsFollowing(!isFollowing);
@@ -204,7 +138,11 @@ export default function ProfilePage() {
                     ))
                   ) : displayedStreams.length > 0 ? (
                     displayedStreams.map(stream => (
-                      <StreamCard key={stream.id} stream={stream} />
+                      <StreamCard 
+                        key={stream.id} 
+                        stream={stream} 
+                        isOwner={isOwnProfile} 
+                      />
                     ))
                   ) : (
                     <div className="col-span-full py-20 text-center">

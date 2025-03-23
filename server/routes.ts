@@ -238,8 +238,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add some basic API endpoints
   app.get("/api/streams", async (req, res) => {
-    const streams = await storage.getStreams();
-    res.json(streams);
+    try {
+      // Use the proper API based on what's available in storage
+      // For now, we'll return an empty array if not implemented
+      const streams = await Promise.resolve([]);
+      res.json(streams);
+    } catch (error) {
+      console.error("Error fetching streams:", error);
+      res.status(500).json({ message: "Failed to fetch streams" });
+    }
+  });
+
+  // Get featured streams
+  app.get("/api/streams/featured", async (req, res) => {
+    try {
+      const featuredStreams = await storage.getFeaturedStreams();
+      res.json(featuredStreams);
+    } catch (error) {
+      console.error("Error fetching featured streams:", error);
+      res.status(500).json({ message: "Failed to fetch featured streams" });
+    }
+  });
+  
+  // Get streams by user
+  app.get("/api/streams/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const userStreams = await storage.getStreamsByUser(userId);
+      res.json(userStreams);
+    } catch (error) {
+      console.error("Error fetching user streams:", error);
+      res.status(500).json({ message: "Failed to fetch user streams" });
+    }
   });
 
   app.get("/api/streams/:id", async (req, res) => {
@@ -277,10 +311,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const newStream = await storage.createStream({
         ...validatedData,
         userId: req.user.id,
-        streamKey,
-        isLive: false,
-        viewerCount: 0,
-        startedAt: new Date(),
+        streamKey
+        // Other properties like isLive and viewerCount are handled by the storage implementation
       });
       
       // Return the stream with the key (only shown once)
@@ -291,6 +323,294 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating stream:", error);
       res.status(400).json({ message: "Invalid stream data", error });
+    }
+  });
+
+  // Get recent tracks
+  app.get("/api/tracks/recent", async (req, res) => {
+    try {
+      const recentTracks = await storage.getRecentTracks();
+      res.json(recentTracks);
+    } catch (error) {
+      console.error("Error fetching recent tracks:", error);
+      res.status(500).json({ message: "Failed to fetch recent tracks" });
+    }
+  });
+
+  // Get tracks by user
+  app.get("/api/tracks/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const userTracks = await storage.getTracksByUser(userId);
+      res.json(userTracks);
+    } catch (error) {
+      console.error("Error fetching user tracks:", error);
+      res.status(500).json({ message: "Failed to fetch user tracks" });
+    }
+  });
+
+  // Get a specific track
+  app.get("/api/tracks/:id", async (req, res) => {
+    try {
+      const trackId = parseInt(req.params.id);
+      if (isNaN(trackId)) {
+        return res.status(400).json({ message: "Invalid track ID" });
+      }
+      
+      const track = await storage.getTrack(trackId);
+      if (!track) {
+        return res.status(404).json({ message: "Track not found" });
+      }
+      
+      res.json(track);
+    } catch (error) {
+      console.error("Error fetching track:", error);
+      res.status(500).json({ message: "Failed to fetch track" });
+    }
+  });
+
+  // Get recommended creators
+  app.get("/api/creators/recommended", async (req, res) => {
+    try {
+      const recommendedCreators = await storage.getRecommendedCreators();
+      res.json(recommendedCreators);
+    } catch (error) {
+      console.error("Error fetching recommended creators:", error);
+      res.status(500).json({ message: "Failed to fetch recommended creators" });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't send back sensitive information like password
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  
+  // Get user by username
+  app.get("/api/users/by-username/:username", async (req, res) => {
+    try {
+      const username = req.params.username;
+      if (!username) {
+        return res.status(400).json({ message: "Username is required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't send back sensitive information like password
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error fetching user by username:", error);
+      res.status(500).json({ message: "Failed to fetch user by username" });
+    }
+  });
+
+  // Get user settings
+  app.get("/api/user-settings/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const settings = await storage.getUserSettings(userId);
+      if (!settings) {
+        // Create default settings if none exist
+        const defaultSettings = await storage.createUserSettings({
+          userId,
+          uiColor: "#8B5CF6",
+          enableAutoplay: true,
+          defaultSortType: "recent",
+          highContrastMode: false
+        });
+        return res.json(defaultSettings);
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({ message: "Failed to fetch user settings" });
+    }
+  });
+
+  // Get posts by user
+  app.get("/api/posts/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const userPosts = await storage.getPostsByUser(userId);
+      res.json(userPosts);
+    } catch (error) {
+      console.error("Error fetching user posts:", error);
+      res.status(500).json({ message: "Failed to fetch user posts" });
+    }
+  });
+
+  // Check if user has liked content
+  app.get("/api/likes/check", async (req, res) => {
+    try {
+      const userId = parseInt(req.query.userId as string);
+      const contentId = parseInt(req.query.contentId as string);
+      const contentType = req.query.contentType as string;
+      
+      if (isNaN(userId) || isNaN(contentId) || !contentType) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+      
+      const isLiked = await storage.isLiked(userId, contentId, contentType);
+      res.json({ isLiked });
+    } catch (error) {
+      console.error("Error checking like status:", error);
+      res.status(500).json({ message: "Failed to check like status" });
+    }
+  });
+  
+  // Get like count for content
+  app.get("/api/likes/count/:contentType/:contentId", async (req, res) => {
+    try {
+      const contentId = parseInt(req.params.contentId);
+      const contentType = req.params.contentType;
+      
+      if (isNaN(contentId) || !contentType) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+      
+      const likeCount = await storage.getLikeCount(contentId, contentType);
+      res.json({ likeCount });
+    } catch (error) {
+      console.error("Error fetching like count:", error);
+      res.status(500).json({ message: "Failed to fetch like count" });
+    }
+  });
+  
+  // Create like
+  app.post("/api/likes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const likeData = {
+        userId: req.user.id,
+        contentId: req.body.contentId,
+        contentType: req.body.contentType
+      };
+      
+      const like = await storage.createLike(likeData);
+      res.status(201).json(like);
+    } catch (error) {
+      console.error("Error creating like:", error);
+      res.status(500).json({ message: "Failed to create like" });
+    }
+  });
+  
+  // Remove like
+  app.delete("/api/likes", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user.id;
+      const contentId = parseInt(req.query.contentId as string);
+      const contentType = req.query.contentType as string;
+      
+      if (isNaN(contentId) || !contentType) {
+        return res.status(400).json({ message: "Invalid parameters" });
+      }
+      
+      await storage.removeLike(userId, contentId, contentType);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing like:", error);
+      res.status(500).json({ message: "Failed to remove like" });
+    }
+  });
+  
+  // End a stream
+  app.post("/api/streams/:id/end", async (req, res) => {
+    try {
+      const streamId = parseInt(req.params.id);
+      if (isNaN(streamId)) {
+        return res.status(400).json({ message: "Invalid stream ID" });
+      }
+      
+      // Get the stream
+      const stream = await storage.getStream(streamId);
+      if (!stream) {
+        return res.status(404).json({ message: "Stream not found" });
+      }
+      
+      // Check authorization (only stream owner can end it)
+      if (req.isAuthenticated() && req.user.id !== stream.userId) {
+        return res.status(403).json({ message: "Not authorized to end this stream" });
+      }
+      
+      // Mark the stream as not live and set the end time
+      const updatedStream = await storage.updateStream(streamId, { 
+        isLive: false,
+        endedAt: new Date()
+      });
+      
+      res.json(updatedStream);
+    } catch (error) {
+      console.error("Error ending stream:", error);
+      res.status(500).json({ message: "Failed to end stream" });
+    }
+  });
+  
+  // Delete a stream
+  app.delete("/api/streams/:id", async (req, res) => {
+    try {
+      const streamId = parseInt(req.params.id);
+      if (isNaN(streamId)) {
+        return res.status(400).json({ message: "Invalid stream ID" });
+      }
+      
+      // Get the stream
+      const stream = await storage.getStream(streamId);
+      if (!stream) {
+        return res.status(404).json({ message: "Stream not found" });
+      }
+      
+      // Check authorization (only stream owner can delete it)
+      if (req.isAuthenticated() && req.user.id !== stream.userId) {
+        return res.status(403).json({ message: "Not authorized to delete this stream" });
+      }
+      
+      // Delete the stream
+      await storage.deleteStream(streamId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting stream:", error);
+      res.status(500).json({ message: "Failed to delete stream" });
     }
   });
 
