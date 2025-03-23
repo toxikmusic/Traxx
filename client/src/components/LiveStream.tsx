@@ -104,11 +104,6 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
         }));
       }
     };
-  };
-  
-  // Initialize WebRTC peer connections
-  useEffect(() => {
-    setupWebSocket();
     
     ws.onmessage = (event) => {
       try {
@@ -179,6 +174,11 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
         }, 3000);
       }
     };
+  };
+  
+  // Initialize WebRTC peer connections
+  useEffect(() => {
+    setupWebSocket();
     
     // Cleanup on unmount
     return () => {
@@ -192,8 +192,8 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       });
       
       // Close WebSocket connection
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
       }
     };
   }, [initialStreamId, mode, toast]);

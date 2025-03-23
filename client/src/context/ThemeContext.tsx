@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getUserSettings } from '@/lib/api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { getUserSettings, updateUserSettings } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 
 type ThemeContextType = {
@@ -69,6 +69,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     queryKey: ['/api/user-settings', user?.id],
     queryFn: () => user ? getUserSettings(user.id) : Promise.reject('No authenticated user'),
     enabled: !!user, // Only run the query if we have a user
+  });
+  
+  // Mutation to update user settings in the database
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: { uiColor?: string; highContrastMode?: boolean }) => {
+      if (!user) return Promise.reject('No authenticated user');
+      console.log("ThemeContext: Saving user settings to database:", data);
+      return updateUserSettings(user.id, data);
+    },
+    onSuccess: (updatedSettings) => {
+      console.log("ThemeContext: Successfully updated user settings in database:", updatedSettings);
+    },
+    onError: (error) => {
+      console.error("ThemeContext: Failed to update user settings in database:", error);
+    }
   });
   
   // Apply cached theme on initial load
@@ -253,8 +268,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     updateThemeCache({ uiColor: color });
     console.log("Color changed to:", color);
     
+    // Apply visual changes
     if (!highContrastMode) {
       updateCssVariables(color);
+    }
+    
+    // Save to database if user is logged in
+    if (user) {
+      updateSettingsMutation.mutate({ 
+        uiColor: color,
+        highContrastMode // Keep existing high contrast value
+      });
     }
   };
   
@@ -265,10 +289,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     updateThemeCache({ highContrastMode: enabled });
     console.log("High contrast mode changed to:", enabled);
     
+    // Apply visual changes
     if (enabled) {
       applyHighContrastMode();
     } else {
       updateCssVariables(primaryColor);
+    }
+    
+    // Save to database if user is logged in
+    if (user) {
+      updateSettingsMutation.mutate({ 
+        uiColor: primaryColor, // Keep existing color
+        highContrastMode: enabled 
+      });
     }
   };
   

@@ -859,6 +859,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user settings" });
     }
   });
+  
+  // Update user settings
+  app.patch("/api/user-settings/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      // Get the settings from the request body
+      const { uiColor, enableAutoplay, defaultSortType, highContrastMode } = req.body;
+      
+      // Update the settings in the database
+      const updatedSettings = await storage.updateUserSettings(userId, {
+        uiColor,
+        enableAutoplay,
+        defaultSortType,
+        highContrastMode
+      });
+      
+      console.log("Updated user settings:", updatedSettings);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Failed to update user settings" });
+    }
+  });
 
   // Get posts by user
   app.get("/api/posts/user/:userId", async (req, res) => {
