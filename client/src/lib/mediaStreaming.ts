@@ -526,9 +526,9 @@ export class MediaStreamingService {
       this.reconnectAttempts = 0;
       
       // Close any existing socket before creating a new one
-      if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
+      if (this.socket && (this.socket as WebSocket).readyState !== WebSocket.CLOSED) {
         try {
-          this.socket.close();
+          (this.socket as WebSocket).close();
         } catch (e) {
           console.warn("Error closing previous socket:", e);
         }
@@ -548,9 +548,9 @@ export class MediaStreamingService {
 
       // Set a connection timeout
       const connectionTimeout = setTimeout(() => {
-        if (this.socket && this.socket.readyState !== WebSocket.OPEN) {
+        if (this.socket && (this.socket as WebSocket).readyState !== WebSocket.OPEN) {
           console.error("WebSocket connection timeout");
-          this.socket.close();
+          (this.socket as WebSocket).close();
           this.notifyStatusChange();
         }
       }, 10000); // 10 seconds timeout
@@ -586,8 +586,8 @@ export class MediaStreamingService {
 
           // Setup connection checking
           this.connectionCheckInterval = setInterval(() => {
-            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-              this.socket.send(JSON.stringify({ 
+            if (this.socket && (this.socket as WebSocket).readyState === WebSocket.OPEN) {
+              (this.socket as WebSocket).send(JSON.stringify({ 
                 type: 'ping',
                 hasVideo: this.streamStatus.hasVideo,
                 hasMic: this.streamStatus.hasMic
@@ -724,13 +724,13 @@ export class MediaStreamingService {
 
     // Close WebSocket connection
     if (this.socket) {
-      if (this.socket.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify({
+      if ((this.socket as WebSocket).readyState === WebSocket.OPEN) {
+        (this.socket as WebSocket).send(JSON.stringify({
           type: 'end_stream',
           streamId: this.streamStatus.streamId
         }));
       }
-      this.socket.close();
+      (this.socket as WebSocket).close();
       this.socket = null;
     }
 
@@ -991,9 +991,9 @@ export class MediaStreamingService {
         }
 
         // Otherwise it's audio data to send
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        if (this.socket && (this.socket as WebSocket).readyState === WebSocket.OPEN) {
           try {
-            this.socket.send(event.data);
+            (this.socket as WebSocket).send(event.data);
           } catch (error) {
             console.error("Error sending audio data:", error);
           }
@@ -1025,7 +1025,7 @@ export class MediaStreamingService {
     );
 
     processorNode.onaudioprocess = (e) => {
-      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      if (this.socket && (this.socket as WebSocket).readyState === WebSocket.OPEN) {
         // Get audio data
         const left = e.inputBuffer.getChannelData(0);
         const right = e.inputBuffer.getChannelData(1);
@@ -1038,7 +1038,7 @@ export class MediaStreamingService {
         }
 
         // Send audio data to server
-        this.socket.send(interleaved.buffer);
+        (this.socket as WebSocket).send(interleaved.buffer);
       }
     };
 
@@ -1058,14 +1058,14 @@ export class MediaStreamingService {
 
     // Send audio level update to the server if we're streaming as broadcaster
     if (this.socket && 
-        this.socket.readyState === WebSocket.OPEN &&
+        (this.socket as WebSocket).readyState === WebSocket.OPEN &&
         this.streamStatus.isLive && 
         this.streamStatus.streamId &&
         this.streamStatus.hasMic &&
         this.streamStatus.audioLevel !== undefined) {
       try {
         // Send as a control message (string) instead of binary audio data
-        this.socket.send(JSON.stringify({
+        (this.socket as WebSocket).send(JSON.stringify({
           type: 'audio_level',
           level: this.streamStatus.audioLevel,
           streamId: this.streamStatus.streamId

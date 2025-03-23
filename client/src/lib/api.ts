@@ -98,6 +98,11 @@ export async function getStreamsByUser(userId: number): Promise<Stream[]> {
   return await apiRequest<Stream[]>(`/api/streams/user/${userId}`);
 }
 
+export async function getActiveStreamsByUser(userId: number): Promise<Stream[]> {
+  const streams = await getStreamsByUser(userId);
+  return streams.filter(stream => stream.isLive);
+}
+
 export async function createStream(data: Partial<Stream>): Promise<Stream> {
   return await apiRequest<Stream>("/api/streams", {
     method: "POST",
@@ -111,9 +116,11 @@ export async function deleteStream(streamId: number): Promise<{ success: boolean
   });
 }
 
-// Legacy function for backward compatibility
+// End stream (mark as not live but keep the record)
 export async function endStream(streamId: number): Promise<{ success: boolean }> {
-  return deleteStream(streamId);
+  return await apiRequest<{ success: boolean }>(`/api/streams/${streamId}/end`, {
+    method: "POST"
+  });
 }
 
 // Creators

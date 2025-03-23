@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Camera, Mic, MicOff, Video, VideoOff, Settings, Volume2, VolumeX, RefreshCw } from "lucide-react";
 
 import { mediaStreamingService, type StreamStatus, type MediaDevice } from "@/lib/mediaStreaming";
-import { createStream } from "@/lib/api";
+import { createStream, getActiveStreamsByUser, endStream } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 
 const streamFormSchema = z.object({
@@ -181,13 +181,50 @@ export default function GoLivePage() {
       return;
     }
 
-    createStreamMutation.mutate({
-      title: values.title,
-      description: values.description || "",
-      userId: user.id,
-      isLive: true,
-      category: values.genre || "electronic",
-    });
+    try {
+      setIsStarting(true);
+      
+      // Check for any active streams by this user
+      const activeStreams = await getActiveStreamsByUser(user.id);
+      
+      // If there are active streams, end them first
+      if (activeStreams.length > 0) {
+        console.log(`Found ${activeStreams.length} active streams, ending them first`);
+        
+        // Show toast to inform the user
+        toast({
+          title: "Ending previous stream",
+          description: "You already have an active stream. Ending it before starting a new one.",
+        });
+        
+        // End all active streams
+        for (const stream of activeStreams) {
+          try {
+            await endStream(stream.id);
+            console.log(`Ended previous stream: ${stream.id}`);
+          } catch (error) {
+            console.error(`Failed to end stream ${stream.id}:`, error);
+          }
+        }
+      }
+      
+      // Now create the new stream
+      createStreamMutation.mutate({
+        title: values.title,
+        description: values.description || "",
+        userId: user.id,
+        isLive: true,
+        category: values.genre || "electronic",
+      });
+    } catch (error) {
+      console.error("Error checking for active streams:", error);
+      toast({
+        title: "Error",
+        description: "Failed to check for active streams. Please try again.",
+        variant: "destructive",
+      });
+      setIsStarting(false);
+    }
   };
 
   const startStreaming = async (id: number, key: string) => {

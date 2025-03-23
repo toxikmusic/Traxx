@@ -2,10 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
-import { Users, Trash2 } from "lucide-react";
+import { Users, Trash2, StopCircle } from "lucide-react";
 import { Stream } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteStream } from "@/lib/api";
+import { deleteStream, endStream } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface StreamCardProps {
@@ -36,6 +36,26 @@ export default function StreamCard({ stream, isOwner = false }: StreamCardProps)
       });
     },
   });
+  
+  // End stream mutation
+  const endStreamMutation = useMutation({
+    mutationFn: () => endStream(stream.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/streams/featured'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/streams/user'] });
+      toast({
+        title: 'Stream ended',
+        description: 'Your live stream has been ended successfully',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to end stream',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Handle delete button click
   const handleDelete = (e: React.MouseEvent) => {
@@ -43,6 +63,15 @@ export default function StreamCard({ stream, isOwner = false }: StreamCardProps)
     e.stopPropagation();
     if (confirm('Are you sure you want to delete this stream?')) {
       deleteStreamMutation.mutate();
+    }
+  };
+  
+  // Handle end stream button click
+  const handleEndStream = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm('Are you sure you want to end this live stream?')) {
+      endStreamMutation.mutate();
     }
   };
 
@@ -98,14 +127,27 @@ export default function StreamCard({ stream, isOwner = false }: StreamCardProps)
           </div>
           <div className="flex gap-2">
             {isOwner && (
-              <Button 
-                size="sm" 
-                variant="destructive" 
-                onClick={handleDelete}
-                disabled={deleteStreamMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <>
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  onClick={handleDelete}
+                  disabled={deleteStreamMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                {stream.isLive && (
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    onClick={handleEndStream}
+                    disabled={endStreamMutation.isPending}
+                  >
+                    <StopCircle className="h-4 w-4 mr-1" />
+                    End
+                  </Button>
+                )}
+              </>
             )}
             <Button size="sm" variant="outline" asChild>
               <Link href={`/stream/${stream.id}`}>
