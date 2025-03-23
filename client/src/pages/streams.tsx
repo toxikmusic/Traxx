@@ -182,39 +182,7 @@ export default function StreamsPage() {
               )}
             </Tabs>
             
-            <Separator className="my-8" />
-            
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Featured Creators</h2>
-                <Button variant="outline" size="sm">
-                  View All <ExternalLink className="ml-1 h-3 w-3" />
-                </Button>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <Card key={i} className="overflow-hidden hover:shadow-md transition-shadow">
-                    <CardContent className="p-0">
-                      <div className="flex flex-col items-center p-4">
-                        <div className="h-16 w-16 rounded-full overflow-hidden bg-primary/10 mb-3">
-                          <img
-                            src={`https://source.unsplash.com/random/100x100?portrait=${i}`}
-                            alt={`Creator ${i}`}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <h3 className="font-medium">Creator {i}</h3>
-                        <p className="text-sm text-muted-foreground">{(i + 2) * 100} followers</p>
-                        <Button variant="outline" size="sm" className="mt-2 w-full">
-                          Follow
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </section>
+            {/* Featured Creators section removed to eliminate placeholder content */}
           </div>
         </main>
       </div>

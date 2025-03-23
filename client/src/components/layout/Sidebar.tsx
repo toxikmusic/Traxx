@@ -57,10 +57,7 @@ export default function Sidebar() {
             <span className="text-sm font-medium">Upload Track</span>
           </Link>
           <Link href="/go-live" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
-            <span className="text-sm font-medium">Go Live (Socket.IO)</span>
-          </Link>
-          <Link href="/go-live-webrtc" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
-            <span className="text-sm font-medium">Go Live (WebRTC)</span>
+            <span className="text-sm font-medium">Go Live</span>
           </Link>
           <Link href="/settings" className="flex items-center space-x-3 p-2 rounded hover:bg-dark-100 transition">
             <span className="text-sm font-medium">Settings</span>

@@ -38,15 +38,7 @@ export default function MobileNavigation() {
           className={`flex flex-col items-center ${isActive('/go-live') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition`}
         >
           <Video size={16} />
-          <span className="text-xs mt-1">Live</span>
-        </Link>
-        
-        <Link 
-          href="/go-live-webrtc" 
-          className={`flex flex-col items-center ${isActive('/go-live-webrtc') ? 'text-primary' : 'text-gray-400 hover:text-primary'} transition`}
-        >
-          <Video size={16} />
-          <span className="text-xs mt-1">WebRTC</span>
+          <span className="text-xs mt-1">Go Live</span>
         </Link>
         
         <Link 

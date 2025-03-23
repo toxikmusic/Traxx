@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { io, Socket } from "socket.io-client";
 import SimplePeer from "simple-peer";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -51,7 +50,7 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
   const [currentMessage, setCurrentMessage] = useState("");
   
   // Refs
-  const socketRef = useRef<Socket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -60,14 +59,84 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
   
   const { toast } = useToast();
 
-  // Initialize socket connection
+  // Initialize WebRTC peer connections
   useEffect(() => {
-    // Use window.location.origin for proper URL construction
-    const socketURL = window.location.origin;
-    console.log("Connecting to Socket.IO server at:", socketURL);
+    // Create a WebSocket connection for signaling
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsURL = `${wsProtocol}//${window.location.host}/ws`;
+    console.log("Connecting to WebSocket server for WebRTC signaling at:", wsURL);
     
-    const socket = io(socketURL);
-    socketRef.current = socket;
+    const ws = new WebSocket(wsURL);
+    wsRef.current = ws;
+    
+    // Setup WebSocket event handlers
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+      
+      // For viewers, join the stream automatically if provided
+      if (initialStreamId && mode === "viewer") {
+        const joinMessage = {
+          type: "join-stream",
+          streamId: initialStreamId,
+        };
+        ws.send(JSON.stringify(joinMessage));
+        setIsStreaming(true);
+      }
+    };
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log("WebSocket message received:", message.type);
+        
+        switch (message.type) {
+          case "viewer-joined":
+            handleViewerJoined(message.data);
+            break;
+          case "viewer-left":
+            handleViewerLeft(message.data);
+            break;
+          case "stream-offer":
+            handleStreamOffer(message.data);
+            break;
+          case "stream-answer":
+            handleStreamAnswer(message.data);
+            break;
+          case "ice-candidate":
+            handleIceCandidate(message.data);
+            break;
+          case "viewer-count":
+            setViewerCount(message.data.count);
+            break;
+          case "chat-message":
+            handleChatMessage(message.data);
+            break;
+          case "stream-ended":
+            handleStreamEnded();
+            break;
+          case "stream-not-found":
+            handleStreamNotFound();
+            break;
+          default:
+            console.warn("Unknown message type:", message.type);
+        }
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to establish connection to the signaling server.",
+        variant: "destructive"
+      });
+    };
+    
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
     
     // Cleanup on unmount
     return () => {
@@ -75,16 +144,225 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
       
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-      
       // Clean up peer connections
       Object.values(peersRef.current).forEach(peer => {
         peer.destroy();
       });
+      
+      // Close WebSocket connection
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
-  }, []);
+  }, [initialStreamId, mode, toast]);
+  
+  // Handle viewer joined event
+  const handleViewerJoined = ({ viewerId }: { viewerId: string }) => {
+    console.log("New viewer joined:", viewerId);
+    if (mode === "host" && localStreamRef.current) {
+      try {
+        // Create new peer connection for the viewer with STUN servers
+        const peer = new SimplePeer({
+          initiator: true,
+          trickle: true,
+          stream: localStreamRef.current,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+          }
+        });
+        
+        // Store the peer
+        peersRef.current[viewerId] = peer;
+        
+        // Handle signaling
+        peer.on("signal", (data) => {
+          console.log("Host signaling data generated for viewer:", viewerId);
+          wsRef.current?.send(JSON.stringify({
+            type: "stream-offer",
+            data: {
+              streamId,
+              description: data,
+              viewerId
+            }
+          }));
+        });
+        
+        // Handle disconnect
+        peer.on("close", () => {
+          console.log("Peer connection closed with viewer:", viewerId);
+          delete peersRef.current[viewerId];
+        });
+        
+        // Handle errors
+        peer.on("error", (err) => {
+          console.error("WebRTC error with viewer:", viewerId, err);
+          toast({
+            title: "Connection Error",
+            description: "Failed to establish connection with viewer. Please try again.",
+            variant: "destructive"
+          });
+          delete peersRef.current[viewerId];
+        });
+      } catch (error) {
+        console.error("Error creating host peer connection:", error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to establish streaming connection. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+  
+  // Handle viewer left event
+  const handleViewerLeft = ({ viewerId }: { viewerId: string }) => {
+    console.log("Viewer left:", viewerId);
+    if (peersRef.current[viewerId]) {
+      peersRef.current[viewerId].destroy();
+      delete peersRef.current[viewerId];
+    }
+  };
+  
+  // Handle stream offer for viewers
+  const handleStreamOffer = ({ hostId, description }: { hostId: string; description: any }) => {
+    console.log("Received stream offer from host:", hostId);
+    if (mode === "viewer") {
+      try {
+        // Create new peer connection to accept the offer with STUN servers
+        const peer = new SimplePeer({
+          initiator: false,
+          trickle: true,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+          }
+        });
+        
+        peersRef.current[hostId] = peer;
+        
+        // Accept the offer
+        peer.signal(description);
+        
+        // Send answer back to host
+        peer.on("signal", (data) => {
+          console.log("Viewer signaling data generated for host:", hostId);
+          wsRef.current?.send(JSON.stringify({
+            type: "stream-answer",
+            data: {
+              hostId,
+              description: data
+            }
+          }));
+        });
+        
+        // When we get the remote stream
+        peer.on("stream", (stream) => {
+          console.log("Received remote stream from host");
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = stream;
+          }
+        });
+        
+        // Handle errors
+        peer.on("error", (err) => {
+          console.error("WebRTC error with host:", hostId, err);
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to stream. The host may have poor connectivity.",
+            variant: "destructive"
+          });
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+          }
+          peer.destroy();
+          delete peersRef.current[hostId];
+        });
+        
+        // Handle peer closing
+        peer.on("close", () => {
+          console.log("Peer connection closed with host:", hostId);
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+          }
+          delete peersRef.current[hostId];
+        });
+      } catch (error) {
+        console.error("Error creating viewer peer connection:", error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to establish connection to stream. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+  
+  // Handle stream answer for hosts
+  const handleStreamAnswer = ({ viewerId, description }: { viewerId: string; description: any }) => {
+    console.log("Received stream answer from viewer:", viewerId);
+    if (mode === "host" && peersRef.current[viewerId]) {
+      peersRef.current[viewerId].signal(description);
+    }
+  };
+  
+  // Handle ICE candidate
+  const handleIceCandidate = ({ from, candidate }: { from: string; candidate: any }) => {
+    console.log("Received ICE candidate from:", from);
+    if (peersRef.current[from]) {
+      peersRef.current[from].signal({ type: "candidate", candidate });
+    }
+  };
+  
+  // Handle chat message
+  const handleChatMessage = ({ senderId, message, timestamp }: ChatMessage) => {
+    const isCurrentUser = senderId === wsRef.current?.url;
+    setChatMessages(prev => [...prev, { senderId, message, timestamp, isCurrentUser }]);
+    
+    // Auto-scroll chat to bottom
+    if (chatContainerRef.current) {
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  };
+  
+  // Handle stream ended
+  const handleStreamEnded = () => {
+    if (mode === "viewer") {
+      toast({
+        title: "Stream ended",
+        description: "The host has ended the stream.",
+        variant: "destructive"
+      });
+      
+      // Clean up
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+      
+      setIsStreaming(false);
+    }
+  };
+  
+  // Handle stream not found
+  const handleStreamNotFound = () => {
+    if (mode === "viewer") {
+      toast({
+        title: "Stream not found",
+        description: "The stream ID you entered does not exist.",
+        variant: "destructive"
+      });
+      
+      setIsStreaming(false);
+    }
+  };
   
   // Setup socket event listeners
   useEffect(() => {
