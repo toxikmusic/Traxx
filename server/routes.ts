@@ -878,11 +878,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // Set up WebSocket servers
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-
-  // Set up separate WebSocket server for audio streaming
-  const audioStreamingWss = new WebSocketServer({ server: httpServer, path: '/audio' });
+  // Set up Socket.IO server 
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
 
   // Types for WebSocket messages
   type ChatMessage = {

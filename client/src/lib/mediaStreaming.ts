@@ -506,12 +506,27 @@ export class MediaStreamingService {
       // Always use the current hostname and port for WebSocket connections
       const host = window.location.host;
       
-      // Build the WebSocket URL - use the exact format expected by the server
-      const wsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
+      // Build the WebSocket URL - make sure to include the audio path that matches the server config
+      // And all necessary query parameters
+      let wsUrl = '';
+      
+      // Try to handle different Replit environment setups
+      if (import.meta.env.VITE_API_URL) {
+        // If we have a specific API URL configured (for production)
+        const apiUrl = new URL(import.meta.env.VITE_API_URL);
+        wsUrl = `${protocol}//${apiUrl.host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
+      } else {
+        // For local development or Replit preview
+        wsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
+      }
 
       // Mask stream key in logs
       const maskedUrl = wsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****');
       console.log(`Connecting to streaming WebSocket: ${maskedUrl}`);
+      
+      // Log additional connection details for debugging
+      const isReplit = window.location.hostname.includes('.replit.dev') || 
+                      window.location.hostname.includes('.repl.co');
       console.log("Environment info:", {
         hostname: window.location.hostname,
         protocol,
