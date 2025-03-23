@@ -202,21 +202,65 @@ export class DatabaseStorage implements IStorage {
   
   // Streams
   async getStream(id: number): Promise<Stream | undefined> {
-    const result = await db.select().from(streams).where(eq(streams.id, id));
+    const result = await db.select({
+      id: streams.id,
+      userId: streams.userId,
+      title: streams.title,
+      description: streams.description,
+      thumbnailUrl: streams.thumbnailUrl,
+      streamKey: streams.streamKey,
+      isLive: streams.isLive,
+      viewerCount: streams.viewerCount,
+      startedAt: streams.startedAt,
+      endedAt: streams.endedAt,
+      category: streams.category,
+      tags: streams.tags
+    })
+    .from(streams)
+    .where(eq(streams.id, id));
+    
     return result[0];
   }
   
   async getFeaturedStreams(): Promise<Stream[]> {
-    return await db.select().from(streams)
-      .where(eq(streams.isLive, true))
-      .orderBy(desc(streams.viewerCount))
-      .limit(6);
+    return await db.select({
+      id: streams.id,
+      userId: streams.userId,
+      title: streams.title,
+      description: streams.description,
+      thumbnailUrl: streams.thumbnailUrl,
+      streamKey: streams.streamKey,
+      isLive: streams.isLive,
+      viewerCount: streams.viewerCount,
+      startedAt: streams.startedAt,
+      endedAt: streams.endedAt,
+      category: streams.category,
+      tags: streams.tags
+    })
+    .from(streams)
+    .where(eq(streams.isLive, true))
+    .orderBy(desc(streams.viewerCount))
+    .limit(6);
   }
   
   async getStreamsByUser(userId: number): Promise<Stream[]> {
-    return await db.select().from(streams)
-      .where(eq(streams.userId, userId))
-      .orderBy(desc(streams.startedAt));
+    return await db.select({
+      id: streams.id,
+      userId: streams.userId,
+      title: streams.title,
+      description: streams.description,
+      thumbnailUrl: streams.thumbnailUrl,
+      streamKey: streams.streamKey,
+      isLive: streams.isLive,
+      viewerCount: streams.viewerCount,
+      startedAt: streams.startedAt,
+      endedAt: streams.endedAt,
+      category: streams.category,
+      tags: streams.tags
+    })
+    .from(streams)
+    .where(eq(streams.userId, userId))
+    .orderBy(desc(streams.startedAt));
   }
   
   async createStream(stream: InsertStream): Promise<Stream> {
@@ -690,6 +734,7 @@ export class DatabaseStorage implements IStorage {
         title: streams.title,
         description: streams.description,
         thumbnailUrl: streams.thumbnailUrl,
+        streamKey: streams.streamKey,
         isLive: streams.isLive,
         viewerCount: streams.viewerCount,
         startedAt: streams.startedAt,

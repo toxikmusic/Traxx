@@ -221,15 +221,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a WebSocket server for WebRTC signaling
   const webrtcWss = new WebSocketServer({ noServer: true });
 
+  // Store active streams for WebRTC - make this global outside the connection handler
+  const webrtcActiveStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
+    
   // Set up the WebRTC WebSocket server
   webrtcWss.on('connection', (ws) => {
     console.log('New WebRTC signaling connection established');
     
     // Generate a unique ID for this connection
     const connectionId = uuidv4();
-    
-    // Store active streams for WebRTC
-    const webrtcActiveStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
     
     ws.on('message', (message) => {
       try {

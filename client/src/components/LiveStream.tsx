@@ -63,12 +63,21 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
   
   const { toast } = useToast();
 
-  // Initialize WebRTC peer connections
-  useEffect(() => {
+  // Setup WebSocket function
+  const setupWebSocket = () => {
     // Create a WebSocket connection for signaling
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsURL = `${wsProtocol}//${window.location.host}/ws`;
     console.log("Connecting to WebSocket server for WebRTC signaling at:", wsURL);
+    
+    // Close any existing connection
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      try {
+        wsRef.current.close();
+      } catch (err) {
+        console.warn("Error closing existing WebSocket:", err);
+      }
+    }
     
     const ws = new WebSocket(wsURL);
     wsRef.current = ws;
@@ -81,12 +90,25 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       if (initialStreamId && mode === "viewer") {
         const joinMessage = {
           type: "join-stream",
-          streamId: initialStreamId,
+          data: { streamId: initialStreamId }
         };
         ws.send(JSON.stringify(joinMessage));
         setIsStreaming(true);
       }
+      
+      // If we were already streaming as a host, reconnect
+      if (isStreaming && mode === "host" && streamId) {
+        ws.send(JSON.stringify({
+          type: "host-stream",
+          data: { streamId }
+        }));
+      }
     };
+  };
+  
+  // Initialize WebRTC peer connections
+  useEffect(() => {
+    setupWebSocket();
     
     ws.onmessage = (event) => {
       try {
@@ -133,13 +155,29 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       console.error("WebSocket error:", error);
       toast({
         title: "Connection Error",
-        description: "Failed to establish connection to the signaling server.",
+        description: "Failed to establish connection to the signaling server. Will try to reconnect...",
         variant: "destructive"
       });
+      
+      // Set a timer to try reconnecting
+      setTimeout(() => {
+        if (wsRef.current && (wsRef.current.readyState === WebSocket.CLOSED || wsRef.current.readyState === WebSocket.CLOSING)) {
+          console.log("Attempting to reconnect WebSocket...");
+          setupWebSocket();
+        }
+      }, 3000);
     };
     
     ws.onclose = () => {
       console.log("WebSocket connection closed");
+      
+      // Try to reconnect only if we're not ending the connection intentionally
+      if (isStreaming) {
+        setTimeout(() => {
+          console.log("Attempting to reconnect WebSocket after close...");
+          setupWebSocket();
+        }, 3000);
+      }
     };
     
     // Cleanup on unmount
@@ -725,6 +763,11 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
     if (!localStreamRef.current) return;
     
     try {
+      // Check if screen sharing is supported
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+        throw new Error("Screen sharing is not supported in this browser or environment");
+      }
+      
       if (isScreenSharing) {
         // Stop screen sharing
         const videoTracks = localStreamRef.current.getVideoTracks();
@@ -753,71 +796,86 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
           description: "Your screen is no longer being shared",
         });
       } else {
-        // Start screen sharing
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-          video: true,
-          audio: true  // Include audio from the screen if available
-        });
-        
-        // Remove any existing video tracks
-        const existingVideoTracks = localStreamRef.current.getVideoTracks();
-        existingVideoTracks.forEach(track => {
-          localStreamRef.current?.removeTrack(track);
-          track.stop();
-        });
-        
-        // Add the screen share video track
-        const screenVideoTrack = screenStream.getVideoTracks()[0];
-        if (screenVideoTrack) {
-          localStreamRef.current.addTrack(screenVideoTrack);
+        try {
+          // Start screen sharing with a feature detection safety check
+          const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+            video: true,
+            audio: true  // Include audio from the screen if available
+          });
           
-          // Listen for the user ending screen share through the browser UI
-          screenVideoTrack.onended = () => {
-            toggleScreenShare();
-          };
-        }
-        
-        // Add any audio tracks from the screen share
-        const screenAudioTracks = screenStream.getAudioTracks();
-        if (screenAudioTracks.length > 0) {
-          // Remove existing audio tracks
-          const existingAudioTracks = localStreamRef.current.getAudioTracks();
-          existingAudioTracks.forEach(track => {
+          // Remove any existing video tracks
+          const existingVideoTracks = localStreamRef.current.getVideoTracks();
+          existingVideoTracks.forEach(track => {
             localStreamRef.current?.removeTrack(track);
-            // Don't stop these as we might want to re-add them
+            track.stop();
           });
           
-          // Add the screen audio track
-          screenAudioTracks.forEach(track => {
-            localStreamRef.current?.addTrack(track);
+          // Add the screen share video track
+          const screenVideoTrack = screenStream.getVideoTracks()[0];
+          if (screenVideoTrack) {
+            localStreamRef.current.addTrack(screenVideoTrack);
+            
+            // Listen for the user ending screen share through the browser UI
+            screenVideoTrack.onended = () => {
+              toggleScreenShare();
+            };
+          }
+          
+          // Add any audio tracks from the screen share
+          const screenAudioTracks = screenStream.getAudioTracks();
+          if (screenAudioTracks.length > 0) {
+            // Remove existing audio tracks
+            const existingAudioTracks = localStreamRef.current.getAudioTracks();
+            existingAudioTracks.forEach(track => {
+              localStreamRef.current?.removeTrack(track);
+              // Don't stop these as we might want to re-add them
+            });
+            
+            // Add the screen audio track
+            screenAudioTracks.forEach(track => {
+              localStreamRef.current?.addTrack(track);
+            });
+          }
+          
+          setIsScreenSharing(true);
+          setVideoEnabled(true);
+          toast({
+            title: "Screen Sharing Started",
+            description: "Your screen is now being shared with viewers",
           });
+        } catch (screenError) {
+          // User might have cancelled the screen share prompt
+          if ((screenError as Error).name === 'NotAllowedError') {
+            throw new Error("Screen sharing permission denied. Please allow access to share your screen.");
+          } else {
+            throw screenError;
+          }
         }
-        
-        setIsScreenSharing(true);
-        setVideoEnabled(true);
-        toast({
-          title: "Screen Sharing Started",
-          description: "Your screen is now being shared with viewers",
-        });
       }
       
       // Update all peer connections with the new stream
       Object.values(peersRef.current).forEach(peer => {
-        // Replace tracks in all active connections
-        peer._senderMap.forEach((sender: any) => {
-          if (sender.track.kind === 'video') {
-            const videoTrack = localStreamRef.current?.getVideoTracks()[0];
-            if (videoTrack) {
-              sender.replaceTrack(videoTrack);
-            }
+        try {
+          // Replace tracks in all active connections
+          if (peer._senderMap) {
+            peer._senderMap.forEach((sender: any) => {
+              if (sender.track.kind === 'video') {
+                const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+                if (videoTrack) {
+                  sender.replaceTrack(videoTrack);
+                }
+              }
+              if (sender.track.kind === 'audio') {
+                const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+                if (audioTrack) {
+                  sender.replaceTrack(audioTrack);
+                }
+              }
+            });
           }
-          if (sender.track.kind === 'audio') {
-            const audioTrack = localStreamRef.current?.getAudioTracks()[0];
-            if (audioTrack) {
-              sender.replaceTrack(audioTrack);
-            }
-          }
-        });
+        } catch (peerError) {
+          console.warn("Error updating peer connection:", peerError);
+        }
       });
       
     } catch (error) {
@@ -924,7 +982,7 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
                   {audioEnabled ? "Mic On" : "Mic Off"}
                 </Button>
                 
-                {isStreaming && (
+                {isStreaming && navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function' && (
                   <Button
                     variant={isScreenSharing ? "destructive" : "default"}
                     size="sm"
@@ -1032,6 +1090,17 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
                       Use this key in OBS Studio or other streaming software to connect.
                     </p>
                   </div>
+                  
+                  {/* Screen sharing info message */}
+                  {(!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') && (
+                    <div className="md:col-span-2 mt-2 p-3 bg-amber-900/20 border border-amber-900/30 rounded-md">
+                      <p className="text-xs text-amber-400">
+                        <strong>Note:</strong> Screen sharing is not available in this browser or environment. 
+                        For screen sharing functionality, please try using a modern browser like Chrome, Firefox, 
+                        or Edge on a desktop computer.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
