@@ -4,11 +4,11 @@ import { useAuth } from "@/hooks/use-auth";
 import LiveStream from "@/components/LiveStream";
 import { useToast } from "@/hooks/use-toast";
 
-export default function GoLivePage() {
+export default function GoLiveWebRTC() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   useEffect(() => {
     if (!user) {
       toast({
@@ -19,12 +19,12 @@ export default function GoLivePage() {
       navigate("/login");
     }
   }, [user, navigate, toast]);
-  
+
   return (
     <div className="container max-w-6xl mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">Live Streaming Studio</h1>
       <p className="text-zinc-400 mb-8">
-        Create and share live streams with your audience using our WebRTC-based streaming platform.
+        Create and share live streams with your audience using our new WebRTC-based streaming platform.
       </p>
       
       <LiveStream 

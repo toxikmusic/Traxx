@@ -25,6 +25,7 @@ import { log } from "./vite";
 import { Server as SocketIOServer } from "socket.io";
 import { WebSocketServer, WebSocket } from "ws";
 import { db } from "./db";
+import { v4 as uuidv4 } from "uuid";
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -235,6 +236,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.destroy();
     }
   });
+  
+  // Store active streams with their IDs for the WebRTC implementation
+  const activeStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
+  
+  // Setup Socket.IO for WebRTC streams
+  io.on("connection", (socket) => {
+    console.log("User connected:", socket.id);
+    
+    // Host starting a stream
+    socket.on("host-stream", ({ streamId }) => {
+      if (!activeStreams.has(streamId)) {
+        activeStreams.set(streamId, { hostId: socket.id, viewers: new Set() });
+      } else {
+        const stream = activeStreams.get(streamId)!;
+        stream.hostId = socket.id;
+      }
+      
+      socket.join(streamId);
+      console.log(`Host ${socket.id} started stream ${streamId}`);
+    });
+    
+    // Viewer joining a stream
+    socket.on("join-stream", ({ streamId }) => {
+      if (activeStreams.has(streamId)) {
+        socket.join(streamId);
+        const stream = activeStreams.get(streamId)!;
+        stream.viewers.add(socket.id);
+        
+        // Notify host about new viewer
+        if (stream.hostId) {
+          io.to(stream.hostId).emit("viewer-joined", { viewerId: socket.id });
+        }
+        
+        // Update viewer count for everyone in the room
+        io.to(streamId).emit("viewer-count", { count: stream.viewers.size });
+        
+        console.log(`Viewer ${socket.id} joined stream ${streamId}`);
+      } else {
+        socket.emit("stream-not-found");
+      }
+    });
+    
+    // Signaling for WebRTC
+    socket.on("signal", ({ to, signal }) => {
+      io.to(to).emit("signal", {
+        from: socket.id,
+        signal
+      });
+    });
+    
+    // Host sending stream offer to viewers
+    socket.on("stream-offer", ({ streamId, description, viewerId }) => {
+      io.to(viewerId).emit("stream-offer", {
+        hostId: socket.id,
+        description
+      });
+    });
+    
+    // Viewer sending answer to host
+    socket.on("stream-answer", ({ hostId, description }) => {
+      io.to(hostId).emit("stream-answer", {
+        viewerId: socket.id,
+        description
+      });
+    });
+    
+    // ICE candidate exchange
+    socket.on("ice-candidate", ({ targetId, candidate }) => {
+      io.to(targetId).emit("ice-candidate", {
+        from: socket.id,
+        candidate
+      });
+    });
+    
+    // Chat message
+    socket.on("chat-message", ({ streamId, message }) => {
+      io.to(streamId).emit("chat-message", {
+        senderId: socket.id,
+        message,
+        timestamp: new Date().toISOString()
+      });
+    });
+    
+    // Disconnect handler
+    socket.on("disconnect", () => {
+      console.log("User disconnected:", socket.id);
+      
+      // Check if the disconnected user was hosting any streams
+      for (const streamId of Array.from(activeStreams.keys())) {
+        const stream = activeStreams.get(streamId)!;
+        if (stream.hostId === socket.id) {
+          // Notify all viewers that the stream has ended
+          io.to(streamId).emit("stream-ended");
+          activeStreams.delete(streamId);
+          console.log(`Stream ${streamId} ended because host disconnected`);
+        } else if (stream.viewers.has(socket.id)) {
+          // Remove viewer from the stream
+          stream.viewers.delete(socket.id);
+          
+          // Notify host that a viewer has left
+          if (stream.hostId) {
+            io.to(stream.hostId).emit("viewer-left", { viewerId: socket.id });
+          }
+          
+          // Update viewer count
+          io.to(streamId).emit("viewer-count", { count: stream.viewers.size });
+        }
+      }
+    });
+  });
 
   // Add some basic API endpoints
   app.get("/api/streams", async (req, res) => {
@@ -246,6 +357,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching streams:", error);
       res.status(500).json({ message: "Failed to fetch streams" });
+    }
+  });
+  
+  // WebRTC Stream API endpoint for stream creation
+  app.post("/api/streams/webrtc", async (req, res) => {
+    try {
+      const userId = req.body.userId || 0;
+      const userName = req.body.userName || 'Anonymous';
+      
+      // Generate a unique stream ID
+      const streamId = uuidv4();
+      activeStreams.set(streamId, { hostId: "", viewers: new Set() });
+      
+      // If we have a valid user ID, try to store the stream in the database too
+      if (userId && userId > 0) {
+        try {
+          await storage.createStream({
+            userId,
+            title: `${userName}'s Stream`,
+            description: `Live stream by ${userName}`,
+            streamKey: streamId
+          });
+        } catch (dbError) {
+          console.warn("Could not save stream to database:", dbError);
+          // Continue anyway, since we've already created the in-memory stream
+        }
+      }
+      
+      return res.json({
+        success: true,
+        streamId,
+        shareUrl: `${req.protocol}://${req.get("host")}/stream/${streamId}`
+      });
+    } catch (error) {
+      console.error("Error creating WebRTC stream:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to create stream", 
+        error: (error as Error).message 
+      });
+    }
+  });
+  
+  // WebRTC Stream API endpoint to check if a stream exists
+  app.get("/api/streams/webrtc/:streamId", (req, res) => {
+    const { streamId } = req.params;
+    const streamExists = activeStreams.has(streamId);
+    
+    if (streamExists) {
+      const stream = activeStreams.get(streamId)!;
+      return res.json({
+        success: true,
+        streamId,
+        viewerCount: stream.viewers.size
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "Stream not found"
+      });
     }
   });
 

@@ -15,11 +15,11 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "types": ["node", "vite/client"],
+    "downlevelIteration": true,
+    "target": "es2015",
     "paths": {
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"]
-    },
-    "downlevelIteration": true,
-    "target": "ES2020"
+    }
   }
 }
