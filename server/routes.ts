@@ -218,7 +218,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Map to track audio streaming connections for each stream
   const audioStreamConnections = new Map<number, { broadcaster: WebSocket | null, listeners: Set<WebSocket> }>();
 
-  // Handle HTTP->WebSocket upgrade for the chat
+  // Create a WebSocket server for WebRTC signaling
+  const webrtcWss = new WebSocketServer({ noServer: true });
+
+  // Set up the WebRTC WebSocket server
+  webrtcWss.on('connection', (ws) => {
+    console.log('New WebRTC signaling connection established');
+    
+    // Generate a unique ID for this connection
+    const connectionId = uuidv4();
+    
+    // Store active streams for WebRTC
+    const webrtcActiveStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
+    
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('WebRTC message received:', data.type);
+        
+        switch (data.type) {
+          case 'host-stream':
+            const streamId = data.data.streamId;
+            if (!webrtcActiveStreams.has(streamId)) {
+              webrtcActiveStreams.set(streamId, { 
+                hostId: connectionId, 
+                viewers: new Set() 
+              });
+            } else {
+              const stream = webrtcActiveStreams.get(streamId)!;
+              stream.hostId = connectionId;
+            }
+            console.log(`Host ${connectionId} started stream ${streamId}`);
+            break;
+            
+          case 'join-stream':
+            const joinStreamId = data.data.streamId;
+            if (webrtcActiveStreams.has(joinStreamId)) {
+              const stream = webrtcActiveStreams.get(joinStreamId)!;
+              stream.viewers.add(connectionId);
+              
+              // Notify host about new viewer
+              webrtcWss.clients.forEach(client => {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'viewer-joined',
+                    data: { viewerId: connectionId }
+                  }));
+                }
+              });
+              
+              // Update viewer count
+              webrtcWss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'viewer-count',
+                    data: { count: stream.viewers.size }
+                  }));
+                }
+              });
+              
+              console.log(`Viewer ${connectionId} joined stream ${joinStreamId}`);
+            } else {
+              ws.send(JSON.stringify({ 
+                type: 'stream-not-found' 
+              }));
+            }
+            break;
+            
+          case 'stream-offer':
+            // Forward offer to specific viewer
+            webrtcWss.clients.forEach(client => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'stream-offer',
+                  data: {
+                    hostId: connectionId,
+                    description: data.data.description
+                  }
+                }));
+              }
+            });
+            break;
+            
+          case 'stream-answer':
+            // Forward answer to host
+            webrtcWss.clients.forEach(client => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'stream-answer',
+                  data: {
+                    viewerId: connectionId,
+                    description: data.data.description
+                  }
+                }));
+              }
+            });
+            break;
+            
+          case 'ice-candidate':
+            // Forward ICE candidate
+            webrtcWss.clients.forEach(client => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'ice-candidate',
+                  data: {
+                    from: connectionId,
+                    candidate: data.data.candidate
+                  }
+                }));
+              }
+            });
+            break;
+            
+          case 'chat-message':
+            // Broadcast chat message to all clients
+            webrtcWss.clients.forEach(client => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                  type: 'chat-message',
+                  data: {
+                    senderId: connectionId,
+                    message: data.data.message,
+                    timestamp: new Date().toISOString()
+                  }
+                }));
+              }
+            });
+            break;
+            
+          case 'end-stream':
+            // Host ending stream
+            const endStreamId = data.data.streamId;
+            if (webrtcActiveStreams.has(endStreamId)) {
+              // Notify all viewers that the stream has ended
+              webrtcWss.clients.forEach(client => {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'stream-ended'
+                  }));
+                }
+              });
+              webrtcActiveStreams.delete(endStreamId);
+              console.log(`Stream ${endStreamId} ended by host`);
+            }
+            break;
+            
+          case 'leave-stream':
+            // Viewer leaving stream
+            const leaveStreamId = data.data.streamId;
+            if (webrtcActiveStreams.has(leaveStreamId)) {
+              const stream = webrtcActiveStreams.get(leaveStreamId)!;
+              stream.viewers.delete(connectionId);
+              
+              // Notify host that a viewer has left
+              webrtcWss.clients.forEach(client => {
+                if (client !== ws && client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'viewer-left',
+                    data: { viewerId: connectionId }
+                  }));
+                }
+              });
+              
+              // Update viewer count
+              webrtcWss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                  client.send(JSON.stringify({
+                    type: 'viewer-count',
+                    data: { count: stream.viewers.size }
+                  }));
+                }
+              });
+            }
+            break;
+            
+          default:
+            console.warn('Unknown message type:', data.type);
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+    
+    // Handle disconnect
+    ws.on('close', () => {
+      console.log('WebRTC signaling connection closed:', connectionId);
+      
+      // Clean up any streams this connection was hosting
+      for (const streamId of Array.from(webrtcActiveStreams.keys())) {
+        const stream = webrtcActiveStreams.get(streamId)!;
+        if (stream.hostId === connectionId) {
+          // Host disconnected, end the stream
+          webrtcWss.clients.forEach(client => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'stream-ended'
+              }));
+            }
+          });
+          webrtcActiveStreams.delete(streamId);
+          console.log(`Stream ${streamId} ended because host disconnected`);
+        } else if (stream.viewers.has(connectionId)) {
+          // Viewer disconnected
+          stream.viewers.delete(connectionId);
+          
+          // Notify host that a viewer has left
+          webrtcWss.clients.forEach(client => {
+            if (client !== ws && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'viewer-left',
+                data: { viewerId: connectionId }
+              }));
+            }
+          });
+          
+          // Update viewer count
+          webrtcWss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({
+                type: 'viewer-count',
+                data: { count: stream.viewers.size }
+              }));
+            }
+          });
+        }
+      }
+    });
+  });
+
+  // Handle HTTP->WebSocket upgrade for all WebSocket endpoints
   server.on('upgrade', (request, socket, head) => {
     const pathname = new URL(request.url || "", `http://${request.headers.host}`).pathname;
 
@@ -230,6 +458,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } else if (pathname === '/ws/audio') {
       audioStreamingWss.handleUpgrade(request, socket, head, (ws) => {
         audioStreamingWss.emit('connection', ws, request);
+      });
+    } else if (pathname === '/ws') {
+      // Handle the WebRTC signaling WebSocket
+      webrtcWss.handleUpgrade(request, socket, head, (ws) => {
+        webrtcWss.emit('connection', ws, request);
       });
     } else {
       // Unhandled WebSocket upgrade path

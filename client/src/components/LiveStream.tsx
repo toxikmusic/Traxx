@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Mic, MicOff, Video, VideoOff, Send, Users } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Copy, ExternalLink, Mic, MicOff, Video, VideoOff, Send, Users, Monitor, Settings, Key } from "lucide-react";
 
 interface ChatMessage {
   senderId: string;
@@ -35,6 +36,9 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
   // Media device states
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [streamKey, setStreamKey] = useState("");
   const [availableDevices, setAvailableDevices] = useState<{
     videoDevices: MediaDeviceInfo[];
     audioDevices: MediaDeviceInfo[];
@@ -364,240 +368,14 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
     }
   };
   
-  // Setup socket event listeners
-  useEffect(() => {
-    if (!socketRef.current) return;
-    
-    const handleViewerJoined = ({ viewerId }: { viewerId: string }) => {
-      console.log("New viewer joined:", viewerId);
-      if (mode === "host" && localStreamRef.current) {
-        try {
-          // Create new peer connection for the viewer with STUN servers
-          const peer = new SimplePeer({
-            initiator: true,
-            trickle: true,
-            stream: localStreamRef.current,
-            config: {
-              iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
-              ]
-            }
-          });
-          
-          // Store the peer
-          peersRef.current[viewerId] = peer;
-          
-          // Handle signaling
-          peer.on("signal", (data) => {
-            console.log("Host signaling data generated for viewer:", viewerId);
-            socketRef.current?.emit("stream-offer", {
-              streamId,
-              description: data,
-              viewerId
-            });
-          });
-          
-          // Handle disconnect
-          peer.on("close", () => {
-            console.log("Peer connection closed with viewer:", viewerId);
-            delete peersRef.current[viewerId];
-          });
-          
-          // Handle errors
-          peer.on("error", (err) => {
-            console.error("WebRTC error with viewer:", viewerId, err);
-            toast({
-              title: "Connection Error",
-              description: "Failed to establish connection with viewer. Please try again.",
-              variant: "destructive"
-            });
-            delete peersRef.current[viewerId];
-          });
-        } catch (error) {
-          console.error("Error creating host peer connection:", error);
-          toast({
-            title: "Connection Error",
-            description: "Failed to establish streaming connection. Please try again.",
-            variant: "destructive"
-          });
-        }
-      }
-    };
-    
-    const handleViewerLeft = ({ viewerId }: { viewerId: string }) => {
-      console.log("Viewer left:", viewerId);
-      if (peersRef.current[viewerId]) {
-        peersRef.current[viewerId].destroy();
-        delete peersRef.current[viewerId];
-      }
-    };
-    
-    const handleStreamOffer = ({ hostId, description }: { hostId: string; description: any }) => {
-      console.log("Received stream offer from host:", hostId);
-      if (mode === "viewer") {
-        try {
-          // Create new peer connection to accept the offer with STUN servers
-          const peer = new SimplePeer({
-            initiator: false,
-            trickle: true,
-            config: {
-              iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
-              ]
-            }
-          });
-          
-          peersRef.current[hostId] = peer;
-          
-          // Accept the offer
-          peer.signal(description);
-          
-          // Send answer back to host
-          peer.on("signal", (data) => {
-            console.log("Viewer signaling data generated for host:", hostId);
-            socketRef.current?.emit("stream-answer", {
-              hostId,
-              description: data
-            });
-          });
-          
-          // When we get the remote stream
-          peer.on("stream", (stream) => {
-            console.log("Received remote stream from host");
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = stream;
-            }
-          });
-          
-          // Handle errors
-          peer.on("error", (err) => {
-            console.error("WebRTC error with host:", hostId, err);
-            toast({
-              title: "Connection Error",
-              description: "Failed to connect to stream. The host may have poor connectivity.",
-              variant: "destructive"
-            });
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = null;
-            }
-            peer.destroy();
-            delete peersRef.current[hostId];
-          });
-          
-          // Handle peer closing
-          peer.on("close", () => {
-            console.log("Peer connection closed with host:", hostId);
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = null;
-            }
-            delete peersRef.current[hostId];
-          });
-        } catch (error) {
-          console.error("Error creating viewer peer connection:", error);
-          toast({
-            title: "Connection Error",
-            description: "Failed to establish connection to stream. Please try again.",
-            variant: "destructive"
-          });
-        }
-      }
-    };
-    
-    const handleStreamAnswer = ({ viewerId, description }: { viewerId: string; description: any }) => {
-      console.log("Received stream answer from viewer:", viewerId);
-      if (mode === "host" && peersRef.current[viewerId]) {
-        peersRef.current[viewerId].signal(description);
-      }
-    };
-    
-    const handleIceCandidate = ({ from, candidate }: { from: string; candidate: any }) => {
-      console.log("Received ICE candidate from:", from);
-      if (peersRef.current[from]) {
-        peersRef.current[from].signal({ type: "candidate", candidate });
-      }
-    };
-    
-    const handleViewerCount = ({ count }: { count: number }) => {
-      setViewerCount(count);
-    };
-    
-    const handleChatMessage = ({ senderId, message, timestamp }: ChatMessage) => {
-      const isCurrentUser = senderId === socketRef.current?.id;
-      setChatMessages(prev => [...prev, { senderId, message, timestamp, isCurrentUser }]);
-      
-      // Auto-scroll chat to bottom
-      if (chatContainerRef.current) {
-        setTimeout(() => {
-          if (chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-          }
-        }, 100);
-      }
-    };
-    
-    const handleStreamEnded = () => {
-      if (mode === "viewer") {
-        toast({
-          title: "Stream ended",
-          description: "The host has ended the stream.",
-          variant: "destructive"
-        });
-        
-        // Clean up
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
-        
-        setIsStreaming(false);
-      }
-    };
-    
-    const handleStreamNotFound = () => {
-      if (mode === "viewer") {
-        toast({
-          title: "Stream not found",
-          description: "The stream ID you entered does not exist.",
-          variant: "destructive"
-        });
-        
-        setIsStreaming(false);
-      }
-    };
-    
-    // Register event handlers
-    socketRef.current.on("viewer-joined", handleViewerJoined);
-    socketRef.current.on("viewer-left", handleViewerLeft);
-    socketRef.current.on("stream-offer", handleStreamOffer);
-    socketRef.current.on("stream-answer", handleStreamAnswer);
-    socketRef.current.on("ice-candidate", handleIceCandidate);
-    socketRef.current.on("viewer-count", handleViewerCount);
-    socketRef.current.on("chat-message", handleChatMessage);
-    socketRef.current.on("stream-ended", handleStreamEnded);
-    socketRef.current.on("stream-not-found", handleStreamNotFound);
-    
-    // Cleanup
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off("viewer-joined", handleViewerJoined);
-        socketRef.current.off("viewer-left", handleViewerLeft);
-        socketRef.current.off("stream-offer", handleStreamOffer);
-        socketRef.current.off("stream-answer", handleStreamAnswer);
-        socketRef.current.off("ice-candidate", handleIceCandidate);
-        socketRef.current.off("viewer-count", handleViewerCount);
-        socketRef.current.off("chat-message", handleChatMessage);
-        socketRef.current.off("stream-ended", handleStreamEnded);
-        socketRef.current.off("stream-not-found", handleStreamNotFound);
-      }
-    };
-  }, [mode, streamId, toast]);
-  
   // Auto-join stream when initialStreamId is provided
   useEffect(() => {
-    if (initialStreamId && mode === "viewer" && socketRef.current && !isStreaming) {
+    if (initialStreamId && mode === "viewer" && wsRef.current && wsRef.current.readyState === WebSocket.OPEN && !isStreaming) {
       // Automatically join the stream
-      socketRef.current.emit("join-stream", { streamId: initialStreamId });
+      wsRef.current.send(JSON.stringify({
+        type: "join-stream",
+        data: { streamId: initialStreamId }
+      }));
       setIsStreaming(true);
       
       toast({
@@ -747,8 +525,13 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       setStreamId(data.streamId);
       setShareUrl(data.shareUrl);
       
-      // Emit host-stream event to socket server
-      socketRef.current?.emit("host-stream", { streamId: data.streamId });
+      // Emit host-stream event to WebSocket server
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "host-stream",
+          data: { streamId: data.streamId }
+        }));
+      }
       
       setIsStreaming(true);
       
@@ -795,7 +578,12 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       }
       
       // Stream exists, join it
-      socketRef.current?.emit("join-stream", { streamId });
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "join-stream",
+          data: { streamId }
+        }));
+      }
       setIsStreaming(true);
       
       toast({
@@ -815,10 +603,18 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
   // End stream function
   const endStream = () => {
     // Notify server the stream is ending
-    if (mode === "host" && streamId) {
-      socketRef.current?.emit("end-stream", { streamId });
-    } else if (mode === "viewer" && streamId) {
-      socketRef.current?.emit("leave-stream", { streamId });
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (mode === "host" && streamId) {
+        wsRef.current.send(JSON.stringify({
+          type: "end-stream",
+          data: { streamId }
+        }));
+      } else if (mode === "viewer" && streamId) {
+        wsRef.current.send(JSON.stringify({
+          type: "leave-stream",
+          data: { streamId }
+        }));
+      }
     }
     
     // Stop tracks and clean up
@@ -923,15 +719,141 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       }
     }
   };
+  
+  // Screen sharing function
+  const toggleScreenShare = async () => {
+    if (!localStreamRef.current) return;
+    
+    try {
+      if (isScreenSharing) {
+        // Stop screen sharing
+        const videoTracks = localStreamRef.current.getVideoTracks();
+        videoTracks.forEach(track => {
+          if (track.label.includes("screen") || track.label.includes("display")) {
+            localStreamRef.current?.removeTrack(track);
+            track.stop();
+          }
+        });
+        
+        // Re-enable camera if it was enabled before
+        if (videoEnabled) {
+          const cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined }
+          });
+          
+          const cameraTrack = cameraStream.getVideoTracks()[0];
+          if (cameraTrack) {
+            localStreamRef.current.addTrack(cameraTrack);
+          }
+        }
+        
+        setIsScreenSharing(false);
+        toast({
+          title: "Screen Sharing Stopped",
+          description: "Your screen is no longer being shared",
+        });
+      } else {
+        // Start screen sharing
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+          video: true,
+          audio: true  // Include audio from the screen if available
+        });
+        
+        // Remove any existing video tracks
+        const existingVideoTracks = localStreamRef.current.getVideoTracks();
+        existingVideoTracks.forEach(track => {
+          localStreamRef.current?.removeTrack(track);
+          track.stop();
+        });
+        
+        // Add the screen share video track
+        const screenVideoTrack = screenStream.getVideoTracks()[0];
+        if (screenVideoTrack) {
+          localStreamRef.current.addTrack(screenVideoTrack);
+          
+          // Listen for the user ending screen share through the browser UI
+          screenVideoTrack.onended = () => {
+            toggleScreenShare();
+          };
+        }
+        
+        // Add any audio tracks from the screen share
+        const screenAudioTracks = screenStream.getAudioTracks();
+        if (screenAudioTracks.length > 0) {
+          // Remove existing audio tracks
+          const existingAudioTracks = localStreamRef.current.getAudioTracks();
+          existingAudioTracks.forEach(track => {
+            localStreamRef.current?.removeTrack(track);
+            // Don't stop these as we might want to re-add them
+          });
+          
+          // Add the screen audio track
+          screenAudioTracks.forEach(track => {
+            localStreamRef.current?.addTrack(track);
+          });
+        }
+        
+        setIsScreenSharing(true);
+        setVideoEnabled(true);
+        toast({
+          title: "Screen Sharing Started",
+          description: "Your screen is now being shared with viewers",
+        });
+      }
+      
+      // Update all peer connections with the new stream
+      Object.values(peersRef.current).forEach(peer => {
+        // Replace tracks in all active connections
+        peer._senderMap.forEach((sender: any) => {
+          if (sender.track.kind === 'video') {
+            const videoTrack = localStreamRef.current?.getVideoTracks()[0];
+            if (videoTrack) {
+              sender.replaceTrack(videoTrack);
+            }
+          }
+          if (sender.track.kind === 'audio') {
+            const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+            if (audioTrack) {
+              sender.replaceTrack(audioTrack);
+            }
+          }
+        });
+      });
+      
+    } catch (error) {
+      console.error("Error toggling screen share:", error);
+      toast({
+        title: "Screen Sharing Error",
+        description: (error as Error).message || "Could not share your screen",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Generate a stream key for OBS
+  const generateStreamKey = () => {
+    // Create a random stream key
+    const key = Math.random().toString(36).substring(2, 15) + 
+                Math.random().toString(36).substring(2, 15);
+    
+    setStreamKey(key);
+    toast({
+      title: "Stream Key Generated",
+      description: "Use this key in OBS or other streaming software",
+    });
+  };
 
   // Chat function
   const sendChatMessage = () => {
-    if (!currentMessage.trim() || !streamId || !socketRef.current) return;
+    if (!currentMessage.trim() || !streamId || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     
-    socketRef.current.emit("chat-message", {
-      streamId,
-      message: currentMessage.trim()
-    });
+    wsRef.current.send(JSON.stringify({
+      type: "chat-message",
+      data: {
+        streamId,
+        message: currentMessage.trim()
+      }
+    }));
     
     setCurrentMessage("");
   };
@@ -1001,8 +923,118 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
                   {audioEnabled ? <Mic className="h-4 w-4 mr-1" /> : <MicOff className="h-4 w-4 mr-1" />}
                   {audioEnabled ? "Mic On" : "Mic Off"}
                 </Button>
+                
+                {isStreaming && (
+                  <Button
+                    variant={isScreenSharing ? "destructive" : "default"}
+                    size="sm"
+                    onClick={toggleScreenShare}
+                    className="rounded-full"
+                  >
+                    <Monitor className="h-4 w-4 mr-1" />
+                    {isScreenSharing ? "Stop Sharing" : "Share Screen"}
+                  </Button>
+                )}
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="rounded-full"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Settings
+                </Button>
               </div>
             </div>
+            
+            {showSettings && (
+              <div className="p-4 bg-zinc-900/80 border-t border-zinc-800">
+                <h3 className="text-sm font-medium mb-2">Stream Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="camera-select" className="text-xs">
+                      Camera
+                    </Label>
+                    <Select
+                      value={selectedVideoDevice}
+                      onValueChange={setSelectedVideoDevice}
+                      disabled={isStreaming}
+                    >
+                      <SelectTrigger id="camera-select" className="w-full">
+                        <SelectValue placeholder="Select camera" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDevices.videoDevices.map((device) => (
+                          <SelectItem key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Camera ${device.deviceId.slice(0, 5)}...`}
+                          </SelectItem>
+                        ))}
+                        {availableDevices.videoDevices.length === 0 && (
+                          <SelectItem value="none" disabled>
+                            No cameras found
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="mic-select" className="text-xs">
+                      Microphone
+                    </Label>
+                    <Select
+                      value={selectedAudioDevice}
+                      onValueChange={setSelectedAudioDevice}
+                      disabled={isStreaming}
+                    >
+                      <SelectTrigger id="mic-select" className="w-full">
+                        <SelectValue placeholder="Select microphone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDevices.audioDevices.map((device) => (
+                          <SelectItem key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                          </SelectItem>
+                        ))}
+                        {availableDevices.audioDevices.length === 0 && (
+                          <SelectItem value="none" disabled>
+                            No microphones found
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="md:col-span-2">
+                    <Label htmlFor="stream-key" className="text-xs">
+                      Stream Key (for OBS/External Software)
+                    </Label>
+                    <div className="flex mt-1">
+                      <Input 
+                        id="stream-key"
+                        type="text" 
+                        value={streamKey} 
+                        readOnly
+                        className="font-mono text-sm flex-grow"
+                      />
+                      <Button 
+                        onClick={generateStreamKey} 
+                        variant="outline"
+                        size="sm"
+                        className="ml-2"
+                      >
+                        <Key className="h-4 w-4 mr-1" />
+                        Generate
+                      </Button>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      Use this key in OBS Studio or other streaming software to connect.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
           <CardFooter className="bg-zinc-950/40 flex justify-between py-3">
             {!isStreaming ? (
