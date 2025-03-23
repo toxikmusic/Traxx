@@ -1,597 +1,394 @@
-import { useState, useEffect, useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { createStream } from '@/lib/api';
-import { Stream } from '@shared/schema';
-import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
-import { useLocation } from 'wouter';
+import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useMutation } from "@tanstack/react-query";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Spinner } from '@/components/ui/spinner';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertCircle, Camera, Radio, Mic, Volume2, VolumeX, BarChart3 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Slider } from '@/components/ui/slider';
-import { Progress } from '@/components/ui/progress';
-import Header from '@/components/layout/Header';
-import Sidebar from '@/components/layout/Sidebar';
-import MobileNavigation from '@/components/layout/MobileNavigation';
-import AudioPlayer from '@/components/layout/AudioPlayer';
-import { useAuth } from '@/hooks/use-auth';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Camera, Mic, MicOff, Video, VideoOff, Settings, Volume2, VolumeX } from "lucide-react";
 
-// Form schema
+import { mediaStreamingService, type StreamStatus } from "@/lib/mediaStreaming";
+import { createStream } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+
 const streamFormSchema = z.object({
-  title: z.string().min(3, { message: "Title must be at least 3 characters" }),
-  description: z.string().optional(),
-  saveStream: z.boolean().default(true),
+  title: z.string().min(3, {
+    message: "Title must be at least 3 characters long",
+  }).max(50, {
+    message: "Title must be less than 50 characters",
+  }),
+  description: z.string().max(300, {
+    message: "Description must be less than 300 characters",
+  }).optional(),
+  genre: z.string().optional(),
 });
 
-type StreamFormValues = z.infer<typeof streamFormSchema>;
+type FormValues = z.infer<typeof streamFormSchema>;
 
 export default function GoLivePage() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const [streamKey, setStreamKey] = useState("••••••••••••••••");
-  const [showStreamKey, setShowStreamKey] = useState(false);
-  const [audioInitialized, setAudioInitialized] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [volume, setVolume] = useState(0.8);
-  const [isMuted, setIsMuted] = useState(false);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>({ 
-    isLive: false, 
-    viewerCount: 0, 
-    peakViewerCount: 0 
-  });
-  const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [activeStreamId, setActiveStreamId] = useState<number | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>({
+    isLive: false,
+    viewerCount: 0,
+    audioLevel: -60,
+    hasVideo: true,
+    hasMic: true,
+    peakViewerCount: 0
+  });
+  const [volume, setVolume] = useState(100);
+  const [isMuted, setIsMuted] = useState(false);
 
-  // For demo, a fixed userId (in real app would come from auth)
-  const userId = user?.id || 1;
+  // Streaming state
+  const [streamId, setStreamId] = useState<number | null>(null);
+  const [streamKey, setStreamKey] = useState<string>("");
 
-  // Initialize audio streaming when component mounts
-  useEffect(() => {
-    const initializeAudio = async () => {
-      try {
-        const result = await audioStreamingService.initialize({
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        });
-
-        if (result) {
-          setAudioInitialized(true);
-          audioStreamingService.setVolume(volume);
-
-          // Register status change listener
-          audioStreamingService.onStatusChange((status) => {
-            setStreamStatus(status);
-          });
-
-          // Register visualization data listener
-          audioStreamingService.onVisualize((data) => {
-            setFrequencyData(data);
-          });
-
-          toast({
-            title: "Audio initialized",
-            description: "Your microphone is ready for streaming.",
-          });
-        } else {
-          toast({
-            title: "Audio initialization failed",
-            description: "Could not access your microphone. Please check permissions.",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error("Error initializing audio:", error);
-        toast({
-          title: "Audio error",
-          description: "Failed to initialize audio streaming. Please check your microphone settings.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    initializeAudio();
-
-    // Clean up resources when component unmounts
-    return () => {
-      if (isStreaming) {
-        audioStreamingService.stopStreaming();
-      }
-      audioStreamingService.dispose();
-    };
-  }, [toast, volume]);
-
-  // Set up form with validation
-  const form = useForm<StreamFormValues>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(streamFormSchema),
     defaultValues: {
       title: "",
       description: "",
-      saveStream: true,
-    }
+      genre: "electronic",
+    },
   });
 
-  // Draw audio visualization on canvas
-  useEffect(() => {
-    if (!canvasRef.current || !frequencyData) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Set visualization style
-    const barWidth = canvas.width / frequencyData.length;
-    const barGap = 2;
-    const barWidthWithGap = barWidth - barGap;
-
-    // Create gradient
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#9333ea'); // Purple from theme
-    gradient.addColorStop(0.5, '#a855f7');
-    gradient.addColorStop(1, '#c084fc');
-
-    // Draw bars
-    ctx.fillStyle = gradient;
-
-    for (let i = 0; i < frequencyData.length; i++) {
-      // Normalize value to canvas height (frequencyData values are 0-255)
-      const barHeight = (frequencyData[i] / 255) * canvas.height;
-      const x = i * barWidth;
-      const y = canvas.height - barHeight;
-
-      // Draw rounded bars
-      ctx.beginPath();
-      ctx.roundRect(x, y, barWidthWithGap, barHeight, 4);
-      ctx.fill();
-    }
-  }, [frequencyData]);
-
-  // Handle volume change
-  const handleVolumeChange = (value: number[]) => {
-    const newVolume = value[0];
-    setVolume(newVolume);
-    if (audioInitialized) {
-      audioStreamingService.setVolume(newVolume);
-    }
-  };
-
-  const testAudio = async () => {
-    try {
-      if (!audioInitialized) {
-        const result = await audioStreamingService.initialize({
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        });
-
-        if (result) {
-          setAudioInitialized(true);
-
-          // Start audio capture and visualization
-          if (canvasRef.current) {
-            audioStreamingService.startCapture();
-            audioStreamingService.startVisualization(canvasRef.current);
-          }
-
-          toast({
-            title: "Audio initialized",
-            description: "Your microphone is ready for testing.",
-          });
-        }
-      } else if (canvasRef.current) {
-        // If already initialized, just start capture and visualization
-        audioStreamingService.startCapture();
-        audioStreamingService.startVisualization(canvasRef.current);
-      }
+  const createStreamMutation = useMutation({
+    mutationFn: createStream,
+    onSuccess: (data) => {
+      setStreamId(data.id);
+      setStreamKey(data.streamKey!);
+      startStreaming(data.id, data.streamKey!);
+    },
+    onError: (error: Error) => {
       toast({
-        title: "Audio test successful",
-        description: "Your microphone is working correctly",
-      });
-    } catch (error) {
-      toast({
+        title: "Failed to create stream",
+        description: error.message,
         variant: "destructive",
-        title: "Audio test failed",
-        description: error instanceof Error ? error.message : "Could not access microphone",
       });
-    }
-  };
+    },
+  });
 
-  // Toggle mute
-  const toggleMute = () => {
-    if (isMuted) {
-      audioStreamingService.setVolume(volume);
-    } else {
-      audioStreamingService.setVolume(0);
-    }
-    setIsMuted(!isMuted);
-  };
+  useEffect(() => {
+    // Initialize streaming service
+    const initializeMedia = async () => {
+      try {
+        setIsInitializing(true);
+        const success = await mediaStreamingService.initialize({
+          enableVideo: true,
+          sampleRate: 48000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        });
+        
+        if (success && videoRef.current) {
+          mediaStreamingService.attachVideo(videoRef.current);
+          mediaStreamingService.onStatusChange(setStreamStatus);
+          
+          if (canvasRef.current) {
+            mediaStreamingService.initializeVisualization(canvasRef.current, 'purple');
+          }
+        }
+        
+        setIsInitializing(false);
+      } catch (err) {
+        toast({
+          title: "Failed to initialize media",
+          description: err instanceof Error ? err.message : "Could not access camera/microphone",
+          variant: "destructive",
+        });
+        setIsInitializing(false);
+      }
+    };
 
-  // Start streaming function
-  const startStreaming = async (streamId: number) => {
-    if (!audioInitialized) {
+    initializeMedia();
+
+    return () => {
+      // Clean up
+      mediaStreamingService.dispose();
+    };
+  }, [toast]);
+
+  const onSubmit = async (values: FormValues) => {
+    if (!user) {
       toast({
-        title: "Audio not initialized",
-        description: "Please check your microphone permissions.",
+        title: "Authentication required",
+        description: "You need to be logged in to start a stream",
         variant: "destructive",
       });
       return;
     }
 
+    createStreamMutation.mutate({
+      title: values.title,
+      description: values.description || "",
+      userId: user.id,
+      isLive: true,
+      category: values.genre || "electronic",
+    });
+  };
+
+  const startStreaming = async (id: number, key: string) => {
     try {
-      // Generate a new stream key for demo
-      const newStreamKey = Math.random().toString(36).substring(2, 15);
-      setStreamKey(newStreamKey);
-
-      const result = await audioStreamingService.startStreaming(streamId, newStreamKey);
-
-      if (result) {
-        setIsStreaming(true);
-        setActiveStreamId(streamId);
-        toast({
-          title: "Stream started",
-          description: "Your audio is now streaming live.",
-        });
-      } else {
-        toast({
-          title: "Streaming failed",
-          description: "Could not start audio streaming. Please try again.",
-          variant: "destructive",
-        });
+      const success = await mediaStreamingService.startStreaming(id, key);
+      if (!success) {
+        throw new Error("Failed to start streaming");
       }
-    } catch (error) {
-      console.error("Error starting stream:", error);
+      
       toast({
-        title: "Streaming error",
-        description: "An error occurred while starting the stream.",
+        title: "Stream started",
+        description: "Your stream is now live!",
+      });
+
+      // Redirect to the stream page
+      navigate(`/stream/${id}`);
+    } catch (err) {
+      toast({
+        title: "Streaming Error",
+        description: err instanceof Error ? err.message : "Failed to start streaming",
         variant: "destructive",
       });
     }
   };
 
-  // Stop streaming function
-  const stopStreaming = () => {
-    audioStreamingService.stopStreaming();
-    setIsStreaming(false);
-    setActiveStreamId(null);
-    toast({
-      title: "Stream ended",
-      description: "Your live stream has ended successfully.",
-    });
+  const toggleVideo = () => {
+    mediaStreamingService.toggleVideo(!streamStatus.hasVideo);
   };
 
-  // Stream creation mutation
-  const createStreamMutation = useMutation({
-    mutationFn: (data: StreamFormValues) => {
-      // Create stream data object
-      const streamData: Partial<Stream> = {
-        title: data.title,
-        description: data.description || null,
-        userId: userId,
-        isLive: true,
-        viewerCount: 0,
-        startedAt: new Date(),
-      };
+  const toggleMic = () => {
+    mediaStreamingService.toggleAudio(!streamStatus.hasMic);
+  };
 
-      return createStream(streamData);
-    },
-    onSuccess: (stream) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/streams/featured'] });
-      toast({
-        title: 'Stream created!',
-        description: 'Your live stream has been created. You can now go live.',
-      });
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0];
+    setVolume(newVolume);
+    mediaStreamingService.setVolume(newVolume / 100);
+  };
 
-      // Start streaming with the newly created stream ID
-      startStreaming(stream.id);
-
-      // Navigate to the stream page after a brief delay
-      setTimeout(() => {
-        navigate(`/stream/${stream.id}`);
-      }, 2000);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error creating stream',
-        description: error.message || 'Something went wrong',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Form submission handler
-  function onSubmit(data: StreamFormValues) {
-    createStreamMutation.mutate(data);
-  }
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    mediaStreamingService.setVolume(isMuted ? volume / 100 : 0);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 px-4 pt-16 pb-20 md:pb-10 lg:pl-72">
-          <div className="container max-w-3xl mx-auto pt-6">
-            <h1 className="text-3xl font-bold mb-2">Go Live</h1>
-            <p className="text-muted-foreground mb-6">Set up your live stream and connect with your audience</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <Card className="md:col-span-3">
-                <CardHeader>
-                  <CardTitle>Stream Settings</CardTitle>
-                  <CardDescription>Configure your stream details</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="title"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stream Title</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Give your stream a title" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Describe what your stream is about" 
-                                rows={4} 
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="saveStream"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Save stream for followers to watch later</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button 
-                        type="submit" 
-                        className="w-full" 
-                        disabled={createStreamMutation.isPending}
-                      >
-                        {createStreamMutation.isPending ? (
-                          <>
-                            <Spinner className="mr-2" size="sm" />
-                            Starting stream...
-                          </>
-                        ) : 'Start Stream'}
-                      </Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-
-              <div className="md:col-span-2 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Audio Preview</CardTitle>
-                    <CardDescription>Check your audio levels and visualization</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="aspect-video bg-black rounded-md flex flex-col items-center justify-center relative">
-                      {audioInitialized ? (
-                        <>
-                          <canvas
-                            ref={canvasRef}
-                            width={500}
-                            height={200}
-                            className="w-full h-full absolute inset-0"
-                          />
-                          {!frequencyData && (
-                            <div className="absolute inset-0 flex items-center justify-center flex-col">
-                              <BarChart3 className="h-12 w-12 text-white/30 mb-2" />
-                              <p className="text-white/70 text-sm">Speak or play audio to see visualization</p>
-                            </div>
-                          )}
-
-                          {/* Stream Status Indicators */}
-                          <div className="absolute top-4 right-4 flex gap-2">
-                            {isStreaming && (
-                              <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
-                                <span className="w-2 h-2 bg-white rounded-full mr-1 animate-pulse"></span>
-                                LIVE
-                              </span>
-                            )}
-                            {streamStatus.viewerCount > 0 && (
-                              <span className="bg-gray-800/80 text-white text-xs px-2 py-1 rounded-full flex items-center">
-                                <span className="mr-1">👁️</span> {streamStatus.viewerCount}
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="h-12 w-12 text-white/30 mb-2" />
-                          <p className="text-white/70 text-sm">Initializing microphone...</p>
-                        </>
-                      )}
+    <div className="container py-6 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-6">Go Live</h1>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8">
+          <Card className="bg-black border-zinc-800">
+            <CardContent className="p-0 relative overflow-hidden rounded-md">
+              {/* Video Preview */}
+              <div className="aspect-video bg-zinc-900 flex items-center justify-center relative">
+                {isInitializing ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="flex gap-4 mb-3">
+                      <Camera className="h-8 w-8 text-white/30" />
+                      <Mic className="h-8 w-8 text-white/30" />
                     </div>
-
-                    {/* Audio Controls */}
-                    <div className="mt-4 space-y-3">
-                      {/* Audio Level Meter */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs w-12 text-muted-foreground">
-                          {streamStatus.audioLevel ? 
-                            `${Math.round(streamStatus.audioLevel)} dB` : 
-                            "-∞ dB"}
-                        </span>
-                        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all duration-100 ${
-                              // Color changes based on level:
-                              // Green for good levels (-30 to -12dB)
-                              // Yellow for high levels (-12 to -6dB)
-                              // Red for too high (above -6dB)
-                              streamStatus.audioLevel && streamStatus.audioLevel > -12 
-                                ? streamStatus.audioLevel > -6 
-                                  ? "bg-red-500" 
-                                  : "bg-yellow-500"
-                                : "bg-emerald-500"
-                            }`}
-                            style={{ 
-                              // Convert dB to percentage width (from -60dB to 0dB)
-                              width: `${streamStatus.audioLevel 
-                                ? Math.min(100, Math.max(0, ((streamStatus.audioLevel + 60) / 60) * 100)) 
-                                : 0}%` 
-                            }}
-                          />
+                    <p className="text-white/70 text-sm">Initializing camera and microphone...</p>
+                    <p className="text-white/50 text-xs mt-2">Please allow access in your browser</p>
+                  </div>
+                ) : (
+                  <>
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      muted 
+                      playsInline 
+                      className="w-full h-full object-cover" 
+                    />
+                    
+                    {/* Media controls overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                      <div className="flex justify-between items-center">
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                            onClick={toggleVideo}
+                          >
+                            {streamStatus.hasVideo ? (
+                              <Video className="h-5 w-5 text-white" />
+                            ) : (
+                              <VideoOff className="h-5 w-5 text-red-500" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                            onClick={toggleMic}
+                          >
+                            {streamStatus.hasMic ? (
+                              <Mic className="h-5 w-5 text-white" />
+                            ) : (
+                              <MicOff className="h-5 w-5 text-red-500" />
+                            )}
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                            onClick={toggleMute}
+                          >
+                            {!isMuted ? (
+                              <Volume2 className="h-5 w-5 text-white" />
+                            ) : (
+                              <VolumeX className="h-5 w-5 text-red-500" />
+                            )}
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 mr-2">
+                            <Slider 
+                              value={[volume]} 
+                              min={0} 
+                              max={100} 
+                              step={1} 
+                              onValueChange={handleVolumeChange} 
+                              className="h-2"
+                            />
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={toggleMute}
-                          className="h-8 w-8"
-                        >
-                          {isMuted ? (
-                            <VolumeX className="h-4 w-4" />
-                          ) : (
-                            <Volume2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Slider
-                          value={[volume]}
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          onValueChange={handleVolumeChange}
-                          disabled={!audioInitialized}
-                          className="flex-1"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        {isStreaming ? (
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={stopStreaming}
-                            className="flex-1"
-                          >
-                            Stop Streaming
-                          </Button>
-                        ) : (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={testAudio}
-                            disabled={isStreaming}
-                            className="flex-1"
-                          >
-                            <Mic className="h-4 w-4 mr-2" />
-                            Test Audio
-                          </Button>
-                        )}
-                      </div>
                     </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Stream Info</CardTitle>
-                    <CardDescription>Connection details for OBS/Streamlabs</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium">Stream URL</h3>
-                      <div className="mt-1 flex">
-                        <Input 
-                          value="rtmp://beatstream.live/live" 
-                          readOnly 
-                          className="font-mono text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium">Stream Key</h3>
-                      <div className="mt-1 flex gap-2">
-                        <Input 
-                          type={showStreamKey ? "text" : "password"} 
-                          value={streamKey} 
-                          readOnly 
-                          className="font-mono text-xs"
-                        />
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setShowStreamKey(!showStreamKey)}
-                        >
-                          {showStreamKey ? "Hide" : "Show"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Important</AlertTitle>
-                      <AlertDescription>
-                        Never share your stream key with anyone. It grants access to broadcast on your channel.
-                      </AlertDescription>
-                    </Alert>
-
-                    <div>
-                      <h3 className="text-sm font-medium">Required Software</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        OBS Studio, StreamLabs OBS, or XSplit
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </>
+                )}
               </div>
+            </CardContent>
+            
+            {/* Audio visualization */}
+            <CardFooter className="px-4 py-3 border-t border-zinc-800">
+              <div className="w-full">
+                <p className="text-sm font-medium mb-2 text-zinc-400">Audio Level</p>
+                <div className="relative h-10 bg-zinc-800 rounded-md overflow-hidden">
+                  <canvas 
+                    ref={canvasRef} 
+                    className="w-full h-full" 
+                  />
+                </div>
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
+        
+        <div className="lg:col-span-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Stream Details</CardTitle>
+              <CardDescription>Fill out the information for your stream</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stream Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="My Awesome Stream" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Tell viewers about your stream..."
+                            className="resize-none h-20"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="genre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Genre</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a genre" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="electronic">Electronic</SelectItem>
+                            <SelectItem value="hip-hop">Hip Hop</SelectItem>
+                            <SelectItem value="pop">Pop</SelectItem>
+                            <SelectItem value="rock">Rock</SelectItem>
+                            <SelectItem value="ambient">Ambient</SelectItem>
+                            <SelectItem value="jazz">Jazz</SelectItem>
+                            <SelectItem value="classical">Classical</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="flex justify-end">
+                    <Button 
+                      type="submit" 
+                      disabled={isInitializing || createStreamMutation.isPending || streamStatus.isLive}
+                      className="w-full"
+                    >
+                      {createStreamMutation.isPending ? "Creating Stream..." : "Go Live"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+          
+          {!isInitializing && (
+            <div className="mt-4">
+              <Alert>
+                <AlertDescription>
+                  {streamStatus.isLive 
+                    ? `Streaming live! Viewers: ${streamStatus.viewerCount}`
+                    : "Your stream will be visible to everyone when you go live."}
+                </AlertDescription>
+              </Alert>
             </div>
-          </div>
-        </main>
+          )}
+        </div>
       </div>
-      <MobileNavigation />
-      <AudioPlayer />
     </div>
   );
 }

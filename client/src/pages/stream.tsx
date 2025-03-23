@@ -16,7 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Slider } from "@/components/ui/slider";
-import { audioStreamingService, type StreamStatus } from '@/lib/audioStreaming';
+import { type StreamStatus } from '@/lib/audioStreaming';
+import { mediaStreamingService } from '@/lib/mediaStreaming';
 import AudioVisualizer from "@/components/audio/AudioVisualizer";
 
 type ChatMessage = {
