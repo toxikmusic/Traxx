@@ -100,20 +100,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (settings) {
       console.log("Settings loaded from server:", settings);
-      setPrimaryColor(settings.uiColor || DEFAULT_PRIMARY_COLOR);
-      setHighContrastMode(settings.highContrastMode || false);
       
-      // Update our cache with server settings
-      updateThemeCache({
-        uiColor: settings.uiColor || DEFAULT_PRIMARY_COLOR,
-        highContrastMode: settings.highContrastMode || false
-      });
-      
-      // Apply the appropriate theme
-      if (settings.highContrastMode) {
-        applyHighContrastMode();
-      } else {
-        updateCssVariables(settings.uiColor || DEFAULT_PRIMARY_COLOR);
+      // Only update if different to avoid loops
+      if (settings.uiColor !== primaryColor || settings.highContrastMode !== highContrastMode) {
+        console.log("Applying theme from server settings");
+        setPrimaryColor(settings.uiColor || DEFAULT_PRIMARY_COLOR);
+        setHighContrastMode(settings.highContrastMode || false);
+        
+        // Update our cache with server settings
+        updateThemeCache({
+          uiColor: settings.uiColor || DEFAULT_PRIMARY_COLOR,
+          highContrastMode: settings.highContrastMode || false
+        });
+        
+        // Apply the appropriate theme
+        if (settings.highContrastMode) {
+          applyHighContrastMode();
+        } else {
+          updateCssVariables(settings.uiColor || DEFAULT_PRIMARY_COLOR);
+        }
       }
     }
   }, [settings]);
@@ -262,6 +267,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
   
   const handlePrimaryColorChange = (color: string) => {
+    // Skip if the color hasn't changed
+    if (color === primaryColor) return;
+    
     setPrimaryColor(color);
     
     // Update localStorage cache with the current color
@@ -283,6 +291,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
   
   const handleHighContrastModeChange = (enabled: boolean) => {
+    // Skip if the value hasn't changed
+    if (enabled === highContrastMode) return;
+    
     setHighContrastMode(enabled);
     
     // Update localStorage cache with the current high contrast setting
