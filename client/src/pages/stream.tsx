@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Slider } from "@/components/ui/slider";
 import { type StreamStatus } from '@/lib/audioStreaming';
 import { mediaStreamingService } from '@/lib/mediaStreaming';
+import { socketIOStreamingService } from '@/lib/socketIoStreaming';
 import AudioVisualizer from "@/components/audio/AudioVisualizer";
 
 type ChatMessage = {
