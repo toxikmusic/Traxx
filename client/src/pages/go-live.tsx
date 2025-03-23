@@ -17,9 +17,9 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Mic, MicOff, Video, VideoOff, Settings, Volume2, VolumeX } from "lucide-react";
+import { Camera, Mic, MicOff, Video, VideoOff, Settings, Volume2, VolumeX, RefreshCw } from "lucide-react";
 
-import { mediaStreamingService, type StreamStatus } from "@/lib/mediaStreaming";
+import { mediaStreamingService, type StreamStatus, type MediaDevice } from "@/lib/mediaStreaming";
 import { createStream } from "@/lib/api";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -55,10 +55,18 @@ export default function GoLivePage() {
   });
   const [volume, setVolume] = useState(100);
   const [isMuted, setIsMuted] = useState(false);
+  
+  // Device selection
+  const [mediaDevices, setMediaDevices] = useState<MediaDevice[]>([]);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+  const [selectedVideoDevice, setSelectedVideoDevice] = useState<string>('');
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('');
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
 
   // Streaming state
   const [streamId, setStreamId] = useState<number | null>(null);
   const [streamKey, setStreamKey] = useState<string>("");
+  const [isStarting, setIsStarting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(streamFormSchema),
@@ -86,7 +94,7 @@ export default function GoLivePage() {
   });
 
   useEffect(() => {
-    // Initialize streaming service
+    // Initialize streaming service and load available devices
     const initializeMedia = async () => {
       try {
         setIsInitializing(true);
@@ -105,6 +113,9 @@ export default function GoLivePage() {
           if (canvasRef.current) {
             mediaStreamingService.initializeVisualization(canvasRef.current, 'purple');
           }
+          
+          // Load available devices after successful initialization
+          await loadMediaDevices();
         }
         
         setIsInitializing(false);
@@ -117,8 +128,42 @@ export default function GoLivePage() {
         setIsInitializing(false);
       }
     };
+    
+    // Function to load media devices
+    const loadMediaDevices = async () => {
+      try {
+        setIsLoadingDevices(true);
+        const devices = await mediaStreamingService.getMediaDevices();
+        setMediaDevices(devices);
+        
+        // Set initial device selections if available
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        const audioDevices = devices.filter(d => d.kind === 'audioinput');
+        
+        if (videoDevices.length > 0) {
+          setSelectedVideoDevice(videoDevices[0].deviceId);
+        }
+        
+        if (audioDevices.length > 0) {
+          setSelectedAudioDevice(audioDevices[0].deviceId);
+        }
+        
+        setIsLoadingDevices(false);
+      } catch (error) {
+        console.error("Failed to load media devices:", error);
+        setIsLoadingDevices(false);
+      }
+    };
+    
+    // Register device change listener
+    const handleDeviceChange = (updatedDevices: MediaDevice[]) => {
+      setMediaDevices(updatedDevices);
+    };
 
     initializeMedia();
+    
+    // Register device change callback
+    mediaStreamingService.onDevicesChange(handleDeviceChange);
 
     return () => {
       // Clean up
@@ -147,11 +192,47 @@ export default function GoLivePage() {
 
   const startStreaming = async (id: number, key: string) => {
     try {
-      const success = await mediaStreamingService.startStreaming(id, key);
-      if (!success) {
-        throw new Error("Failed to start streaming");
+      console.log("Starting stream with ID:", id);
+      
+      // First check if we have the necessary permissions
+      if (!streamStatus.hasMic) {
+        toast({
+          title: "Microphone access required",
+          description: "Please enable microphone access to start streaming",
+          variant: "destructive",
+        });
+        return;
       }
       
+      setIsStarting(true);
+      
+      // Register a status change handler to receive stream status updates
+      const handleStatusChange = (status: StreamStatus) => {
+        setStreamStatus(status);
+        
+        // Check for errors in status
+        if (status.error) {
+          toast({
+            title: "Streaming error",
+            description: status.error,
+            variant: "destructive",
+          });
+          setIsStarting(false);
+        }
+      };
+      
+      // Register the handler before starting stream
+      mediaStreamingService.onStatusChange(handleStatusChange);
+      
+      // Attempt to start streaming
+      const success = await mediaStreamingService.startStreaming(id, key);
+      
+      if (!success) {
+        setIsStarting(false);
+        throw new Error("Failed to connect to streaming server. Please try again.");
+      }
+      
+      // Show success message
       toast({
         title: "Stream started",
         description: "Your stream is now live!",
@@ -160,6 +241,9 @@ export default function GoLivePage() {
       // Redirect to the stream page
       navigate(`/stream/${id}`);
     } catch (err) {
+      console.error("Error starting stream:", err);
+      setIsStarting(false);
+      
       toast({
         title: "Streaming Error",
         description: err instanceof Error ? err.message : "Failed to start streaming",
@@ -185,6 +269,69 @@ export default function GoLivePage() {
   const toggleMute = () => {
     setIsMuted(!isMuted);
     mediaStreamingService.setVolume(isMuted ? volume / 100 : 0);
+  };
+  
+  // Device selection handlers
+  const refreshDevices = async () => {
+    setIsLoadingDevices(true);
+    try {
+      const devices = await mediaStreamingService.getMediaDevices();
+      setMediaDevices(devices);
+      setIsLoadingDevices(false);
+    } catch (error) {
+      console.error("Failed to refresh devices:", error);
+      setIsLoadingDevices(false);
+    }
+  };
+  
+  const handleChangeVideoDevice = async (deviceId: string) => {
+    if (deviceId === selectedVideoDevice) return;
+    
+    try {
+      const success = await mediaStreamingService.switchInputDevice(deviceId, 'videoinput');
+      if (success) {
+        setSelectedVideoDevice(deviceId);
+        toast({
+          title: "Camera changed",
+          description: "Successfully switched to the selected camera",
+        });
+      } else {
+        throw new Error("Failed to switch camera");
+      }
+    } catch (error) {
+      toast({
+        title: "Device error",
+        description: error instanceof Error ? error.message : "Could not switch camera",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleChangeAudioDevice = async (deviceId: string) => {
+    if (deviceId === selectedAudioDevice) return;
+    
+    try {
+      const success = await mediaStreamingService.switchInputDevice(deviceId, 'audioinput');
+      if (success) {
+        setSelectedAudioDevice(deviceId);
+        toast({
+          title: "Microphone changed",
+          description: "Successfully switched to the selected microphone",
+        });
+      } else {
+        throw new Error("Failed to switch microphone");
+      }
+    } catch (error) {
+      toast({
+        title: "Device error",
+        description: error instanceof Error ? error.message : "Could not switch microphone",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const toggleDeviceSettings = () => {
+    setShowDeviceSettings(!showDeviceSettings);
   };
 
   return (
@@ -218,57 +365,149 @@ export default function GoLivePage() {
                     
                     {/* Media controls overlay */}
                     <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
-                            onClick={toggleVideo}
-                          >
-                            {streamStatus.hasVideo ? (
-                              <Video className="h-5 w-5 text-white" />
-                            ) : (
-                              <VideoOff className="h-5 w-5 text-red-500" />
-                            )}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
-                            onClick={toggleMic}
-                          >
-                            {streamStatus.hasMic ? (
-                              <Mic className="h-5 w-5 text-white" />
-                            ) : (
-                              <MicOff className="h-5 w-5 text-red-500" />
-                            )}
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
-                            onClick={toggleMute}
-                          >
-                            {!isMuted ? (
-                              <Volume2 className="h-5 w-5 text-white" />
-                            ) : (
-                              <VolumeX className="h-5 w-5 text-red-500" />
-                            )}
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 mr-2">
-                            <Slider 
-                              value={[volume]} 
-                              min={0} 
-                              max={100} 
-                              step={1} 
-                              onValueChange={handleVolumeChange} 
-                              className="h-2"
-                            />
+                      <div className="flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                              onClick={toggleVideo}
+                            >
+                              {streamStatus.hasVideo ? (
+                                <Video className="h-5 w-5 text-white" />
+                              ) : (
+                                <VideoOff className="h-5 w-5 text-red-500" />
+                              )}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                              onClick={toggleMic}
+                            >
+                              {streamStatus.hasMic ? (
+                                <Mic className="h-5 w-5 text-white" />
+                              ) : (
+                                <MicOff className="h-5 w-5 text-red-500" />
+                              )}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="rounded-full w-10 h-10 p-0 bg-zinc-800/50 hover:bg-zinc-700"
+                              onClick={toggleMute}
+                            >
+                              {!isMuted ? (
+                                <Volume2 className="h-5 w-5 text-white" />
+                              ) : (
+                                <VolumeX className="h-5 w-5 text-red-500" />
+                              )}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className={`rounded-full w-10 h-10 p-0 ${showDeviceSettings ? 'bg-purple-700 hover:bg-purple-600' : 'bg-zinc-800/50 hover:bg-zinc-700'}`}
+                              onClick={toggleDeviceSettings}
+                            >
+                              <Settings className={`h-5 w-5 ${showDeviceSettings ? 'text-white' : 'text-white/70'}`} />
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 mr-2">
+                              <Slider 
+                                value={[volume]} 
+                                min={0} 
+                                max={100} 
+                                step={1} 
+                                onValueChange={handleVolumeChange} 
+                                className="h-2"
+                              />
+                            </div>
                           </div>
                         </div>
+
+                        {/* Device Settings Panel */}
+                        {showDeviceSettings && (
+                          <div className="mt-2 p-3 bg-zinc-900/90 rounded-md border border-zinc-700 animate-in slide-in-from-bottom duration-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-medium text-white">Device Settings</h4>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={refreshDevices}
+                                disabled={isLoadingDevices}
+                              >
+                                <RefreshCw className={`h-4 w-4 ${isLoadingDevices ? 'animate-spin' : ''}`} />
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              {/* Camera selection */}
+                              <div>
+                                <label className="text-xs text-zinc-400 mb-1 block">Camera</label>
+                                <Select 
+                                  value={selectedVideoDevice} 
+                                  onValueChange={handleChangeVideoDevice}
+                                  disabled={isLoadingDevices || mediaDevices.filter(d => d.kind === 'videoinput').length === 0}
+                                >
+                                  <SelectTrigger className="h-8 text-sm bg-zinc-800 border-zinc-700">
+                                    <SelectValue placeholder="Select camera" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {mediaDevices
+                                      .filter(device => device.kind === 'videoinput')
+                                      .map(device => (
+                                        <SelectItem 
+                                          key={device.deviceId} 
+                                          value={device.deviceId}
+                                          className="text-sm"
+                                        >
+                                          {device.label}
+                                        </SelectItem>
+                                      ))
+                                    }
+                                    {mediaDevices.filter(d => d.kind === 'videoinput').length === 0 && (
+                                      <SelectItem value="none" disabled>No cameras available</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {/* Microphone selection */}
+                              <div>
+                                <label className="text-xs text-zinc-400 mb-1 block">Microphone</label>
+                                <Select 
+                                  value={selectedAudioDevice} 
+                                  onValueChange={handleChangeAudioDevice}
+                                  disabled={isLoadingDevices || mediaDevices.filter(d => d.kind === 'audioinput').length === 0}
+                                >
+                                  <SelectTrigger className="h-8 text-sm bg-zinc-800 border-zinc-700">
+                                    <SelectValue placeholder="Select microphone" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {mediaDevices
+                                      .filter(device => device.kind === 'audioinput')
+                                      .map(device => (
+                                        <SelectItem 
+                                          key={device.deviceId} 
+                                          value={device.deviceId}
+                                          className="text-sm"
+                                        >
+                                          {device.label}
+                                        </SelectItem>
+                                      ))
+                                    }
+                                    {mediaDevices.filter(d => d.kind === 'audioinput').length === 0 && (
+                                      <SelectItem value="none" disabled>No microphones available</SelectItem>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </>

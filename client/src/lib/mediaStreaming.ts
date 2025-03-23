@@ -121,6 +121,13 @@ export class AudioVisualizer {
   }
 }
 
+export type MediaDevice = {
+  deviceId: string;
+  kind: 'audioinput' | 'videoinput' | 'audiooutput';
+  label: string;
+  groupId: string;
+};
+
 export class MediaStreamingService {
   // Media stream handling
   private stream: MediaStream | null = null;
@@ -129,6 +136,11 @@ export class MediaStreamingService {
   private analyserNode: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
   private videoElement: HTMLVideoElement | null = null;
+  
+  // Media devices
+  private availableDevices: MediaDevice[] = [];
+  private selectedAudioDeviceId: string = '';
+  private selectedVideoDeviceId: string = '';
   
   // WebSocket connection
   private socket: WebSocket | null = null;
@@ -155,9 +167,18 @@ export class MediaStreamingService {
   private visualizer: AudioVisualizer | null = null;
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 5;
+  private onDevicesChangeCallbacks: ((devices: MediaDevice[]) => void)[] = [];
 
   constructor() {
     // Create Audio Context when needed (due to browser autoplay policies)
+    
+    // Bind the deviceChange handler to this instance so it works correctly with event listeners
+    this.handleDeviceChange = this.handleDeviceChange.bind(this);
+    
+    // Listen for device changes
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.addEventListener('devicechange', this.handleDeviceChange);
+    }
   }
 
   /**
@@ -481,30 +502,17 @@ export class MediaStreamingService {
       // Setup WebSocket connection for streaming
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       
-      // Handle WebSocket URL based on environment
-      const isReplit = window.location.hostname.endsWith('.replit.app') || 
-                       window.location.hostname.includes('replit') || 
-                       window.location.hostname === 'localhost';
+      // Determine the correct WebSocket URL based on environment
+      // Always use the current hostname and port for WebSocket connections
+      const host = window.location.host;
       
-      // Correctly format the host for WebSocket connection
-      let host = window.location.host;
-      
-      // Handle Replit environment specifically
-      if (isReplit) {
-        // Use full host (including port) for localhost development
-        // But for .replit.app domains, use just the hostname
-        if (window.location.hostname !== 'localhost' && host.includes(':')) {
-          host = window.location.hostname; // Use only hostname without port
-        }
-      }
-      
+      // Build the WebSocket URL - use the exact format expected by the server
       const wsUrl = `${protocol}//${host}/audio?streamId=${streamId}&role=broadcaster&streamKey=${streamKey}`;
 
       // Mask stream key in logs
       const maskedUrl = wsUrl.replace(/streamKey=([^&]+)/, 'streamKey=****');
       console.log(`Connecting to streaming WebSocket: ${maskedUrl}`);
       console.log("Environment info:", {
-        isReplit,
         hostname: window.location.hostname,
         protocol,
         host,
@@ -517,11 +525,24 @@ export class MediaStreamingService {
       // Reset reconnect attempts
       this.reconnectAttempts = 0;
       
-      // Create WebSocket connection
+      // Close any existing socket before creating a new one
+      if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
+        try {
+          this.socket.close();
+        } catch (e) {
+          console.warn("Error closing previous socket:", e);
+        }
+        this.socket = null;
+      }
+      
+      // Create WebSocket connection with a try-catch to handle any errors
       try {
         this.socket = new WebSocket(wsUrl);
+        console.log("WebSocket instance created successfully");
       } catch (error) {
-        console.error("WebSocket connection error:", error);
+        console.error("Error creating WebSocket instance:", error);
+        this.streamStatus.error = "Failed to create WebSocket connection";
+        this.notifyStatusChange();
         return false;
       }
 
@@ -755,6 +776,145 @@ export class MediaStreamingService {
   }
 
   /**
+   * Get available media devices (cameras and microphones)
+   */
+  async getMediaDevices(): Promise<MediaDevice[]> {
+    try {
+      // Request permissions first to get labeled devices
+      if (!this.stream) {
+        try {
+          // Try to get a temporary stream to trigger permissions
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          
+          // Stop the temporary stream right away
+          tempStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+          console.warn("Could not get full permissions - device labels may be unavailable", err);
+        }
+      }
+      
+      // Enumerate all devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      // Filter and format devices
+      this.availableDevices = devices
+        .filter(device => ['audioinput', 'videoinput'].includes(device.kind))
+        .map(device => ({
+          deviceId: device.deviceId,
+          kind: device.kind as 'audioinput' | 'videoinput' | 'audiooutput',
+          label: device.label || (device.kind === 'audioinput' 
+            ? `Microphone ${device.deviceId.slice(0, 5)}...` 
+            : `Camera ${device.deviceId.slice(0, 5)}...`),
+          groupId: device.groupId
+        }));
+      
+      // Notify listeners
+      this.notifyDevicesChange();
+      
+      return this.availableDevices;
+    } catch (error) {
+      console.error("Error getting media devices:", error);
+      return [];
+    }
+  }
+  
+  /**
+   * Handle device change events
+   */
+  private async handleDeviceChange() {
+    console.log("Media devices changed, updating device list");
+    await this.getMediaDevices();
+  }
+  
+  /**
+   * Register a callback for device changes
+   */
+  onDevicesChange(callback: (devices: MediaDevice[]) => void): void {
+    this.onDevicesChangeCallbacks.push(callback);
+  }
+  
+  /**
+   * Notify all registered callbacks about device changes
+   */
+  private notifyDevicesChange(): void {
+    this.onDevicesChangeCallbacks.forEach(callback => {
+      callback(this.availableDevices);
+    });
+  }
+  
+  /**
+   * Switch to a different camera or audio input device
+   */
+  async switchInputDevice(deviceId: string, kind: 'audioinput' | 'videoinput'): Promise<boolean> {
+    try {
+      if (!this.stream) {
+        console.error("No stream available, cannot switch devices");
+        return false;
+      }
+      
+      // Store the selected device ID
+      if (kind === 'audioinput') {
+        this.selectedAudioDeviceId = deviceId;
+      } else {
+        this.selectedVideoDeviceId = deviceId;
+      }
+      
+      // Stop the current tracks of this kind
+      this.stream.getTracks()
+        .filter(track => (kind === 'audioinput' ? track.kind === 'audio' : track.kind === 'video'))
+        .forEach(track => track.stop());
+      
+      // Create constraints for the new device
+      const constraints: MediaStreamConstraints = {};
+      
+      if (kind === 'audioinput') {
+        constraints.audio = { deviceId: { exact: deviceId } };
+        constraints.video = this.streamStatus.hasVideo;
+      } else {
+        constraints.video = { deviceId: { exact: deviceId } };
+        constraints.audio = this.streamStatus.hasMic;
+      }
+      
+      // Get a new stream with the specified device
+      const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+      
+      // Replace the old tracks with new ones
+      const oldTrackKind = kind === 'audioinput' ? 'audio' : 'video';
+      const newTracks = newStream.getTracks().filter(track => 
+        (oldTrackKind === 'audio' ? track.kind === 'audio' : track.kind === 'video')
+      );
+      
+      newTracks.forEach(track => {
+        this.stream!.addTrack(track);
+      });
+      
+      // Update the stream status
+      if (kind === 'audioinput') {
+        this.streamStatus.hasMic = newTracks.length > 0;
+        
+        // Reconnect audio processing if audio changed
+        if (this.audioContext && this.streamStatus.hasMic) {
+          this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
+          this.sourceNode.connect(this.analyserNode!);
+        }
+      } else {
+        this.streamStatus.hasVideo = newTracks.length > 0;
+      }
+      
+      // Update video element if it exists
+      if (this.videoElement) {
+        this.videoElement.srcObject = this.stream;
+      }
+      
+      this.notifyStatusChange();
+      return true;
+    } catch (error) {
+      console.error(`Error switching ${kind}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Clean up and release resources
    */
   dispose(): void {
@@ -780,6 +940,11 @@ export class MediaStreamingService {
         this.audioContext.close();
       }
 
+      // Remove device change listener
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.removeEventListener('devicechange', this.handleDeviceChange);
+      }
+
       this.audioContext = null;
       this.sourceNode = null;
       this.analyserNode = null;
@@ -788,6 +953,7 @@ export class MediaStreamingService {
       this.visualizer = null;
       this.onStatusChangeCallbacks = [];
       this.onVisualizeCallbacks = [];
+      this.onDevicesChangeCallbacks = [];
     } catch (error) {
       console.error("Error disposing media streaming service:", error);
     }
