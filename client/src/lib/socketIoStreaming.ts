@@ -205,16 +205,9 @@ export class SocketIOStreamingService {
       const host = window.location.host;
       let socketUrl = '';
       
-      // Try to handle different Replit environment setups
-      if (import.meta.env.VITE_API_URL) {
-        // If we have a specific API URL configured (for production)
-        const apiUrl = new URL(import.meta.env.VITE_API_URL);
-        socketUrl = `${apiUrl.protocol}//${apiUrl.host}`;
-      } else {
-        // For local development or Replit preview
-        socketUrl = window.location.origin;
-      }
-
+      // Use the window.location.origin which includes the correct port for Replit
+      socketUrl = window.location.origin;
+      
       // Log connection details
       console.log(`Connecting to Socket.IO: ${socketUrl}`);
       
@@ -224,6 +217,7 @@ export class SocketIOStreamingService {
       console.log("Environment info:", {
         protocol: window.location.protocol,
         host,
+        port: window.location.port || (window.location.protocol === 'https:' ? '443' : '80'),
         hostname: window.location.hostname,
         isReplit,
         sourceUrl: window.location.origin
@@ -505,17 +499,22 @@ export class SocketIOStreamingService {
       const host = window.location.host;
       let socketUrl = '';
       
-      // Try to handle different Replit environment setups
-      if (import.meta.env.VITE_API_URL) {
-        // If we have a specific API URL configured (for production)
-        const apiUrl = new URL(import.meta.env.VITE_API_URL);
-        socketUrl = `${apiUrl.protocol}//${apiUrl.host}`;
-      } else {
-        // For local development or Replit preview
-        socketUrl = window.location.origin;
-      }
-
+      // Use the window.location.origin which includes the correct port for Replit
+      socketUrl = window.location.origin;
+      
       console.log(`Connecting to Socket.IO as listener: ${socketUrl}`);
+      
+      // Log additional connection details for debugging
+      const isReplit = window.location.hostname.includes('.replit.dev') || 
+                       window.location.hostname.includes('.repl.co');
+      console.log("Listener environment info:", {
+        protocol: window.location.protocol,
+        host,
+        port: window.location.port || (window.location.protocol === 'https:' ? '443' : '80'),
+        hostname: window.location.hostname,
+        isReplit,
+        socketUrl
+      });
 
       try {
         // Connect to Socket.IO server
