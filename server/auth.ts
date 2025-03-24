@@ -87,18 +87,53 @@ export function setupAuth(app: Express) {
     }
   });
 
+  function generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  async function sendVerificationEmail(email: string, token: string) {
+    const verifyUrl = `${process.env.APP_URL}/verify-email?token=${token}`;
+    
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'noreply@example.com',
+      to: email,
+      subject: 'Verify Your Email',
+      text: `Click the following link to verify your email: ${verifyUrl}`,
+      html: `
+        <p>Welcome! Please verify your email to activate your account.</p>
+        <p>Click <a href="${verifyUrl}">here</a> to verify your email.</p>
+        <p>This link will expire in 24 hours.</p>
+      `
+    });
+  }
+
   app.post("/api/register", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
+      const { username, password, email } = req.body;
+
+      const existingUser = await storage.getUserByUsername(username);
       if (existingUser) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
-      const hashedPassword = await hashPassword(req.body.password);
+      const existingEmail = await storage.getUserByEmail(email);
+      if (existingEmail) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      const verificationToken = generateVerificationToken();
+      const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      const hashedPassword = await hashPassword(password);
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
+        isVerified: false,
+        verificationToken,
+        verificationTokenExpiry
       });
+
+      await sendVerificationEmail(email, verificationToken);
 
       // Automatically create default user settings for the new user
       await storage.createUserSettings({

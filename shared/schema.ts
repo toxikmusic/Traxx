@@ -7,17 +7,22 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email").notNull().unique(), // Added email field
   displayName: text("display_name").notNull(),
   bio: text("bio"),
   profileImageUrl: text("profile_image_url"),
   isStreaming: boolean("is_streaming").default(false),
   followerCount: integer("follower_count").default(0),
-  createdAt: timestamp("created_at").defaultNow()
+  createdAt: timestamp("created_at").defaultNow(),
+  isVerified: boolean("is_verified").default(false), // Added isVerified field
+  verificationToken: text("verification_token"), // Added verificationToken field
+  verificationTokenExpiry: timestamp("verification_token_expiry") // Added verificationTokenExpiry field
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
+  email: true, // Added email to the insert schema
   displayName: true,
   bio: true,
   profileImageUrl: true
