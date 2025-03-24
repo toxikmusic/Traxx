@@ -155,6 +155,58 @@ export function setupAuth(app: Express) {
     })(req, res, next);
   });
 
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        return res.status(404).json({ message: "No account found with this email" });
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+      // Store reset token
+      await storage.storeResetToken(user.id, resetToken, tokenExpiry);
+      
+      // Send reset email
+      await sendPasswordResetEmail(email, resetToken);
+
+      res.json({ message: "Password reset email sent" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Failed to process password reset" });
+    }
+  });
+
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      // Verify token
+      const resetInfo = await storage.getResetToken(token);
+      if (!resetInfo || resetInfo.expiry < new Date()) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+      
+      // Update password
+      await storage.updateUserPassword(resetInfo.userId, hashedPassword);
+      
+      // Remove used token
+      await storage.removeResetToken(token);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   app.post("/api/logout", (req, res, next) => {
     if (!req.isAuthenticated()) {
       return res.status(200).json({ message: "Not logged in" });
