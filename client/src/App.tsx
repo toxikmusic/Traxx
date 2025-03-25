@@ -6,6 +6,8 @@ import { AudioPlayerProvider } from "@/context/AudioPlayerContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import AudioPlayer from "@/components/layout/AudioPlayer";
+import { MiniPlayer } from "@/components/MiniPlayer";
 
 import Home from "@/pages/home";
 import Stream from "@/pages/stream";
@@ -59,6 +61,9 @@ function App() {
         <ThemeProvider>
           <AudioPlayerProvider>
             <Router />
+            {/* Audio player components */}
+            <AudioPlayer />
+            <MiniPlayer />
             <Toaster />
           </AudioPlayerProvider>
         </ThemeProvider>
