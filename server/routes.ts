@@ -253,7 +253,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
           case 'join-stream':
             const joinStreamId = data.data.streamId;
-            if (webrtcActiveStreams.has(joinStreamId)) {
+            
+            // Check in both maps for the stream
+            const streamExistsInWebRTC = webrtcActiveStreams.has(joinStreamId);
+            const streamExistsInLegacy = activeStreams.has(joinStreamId);
+            
+            if (streamExistsInWebRTC || streamExistsInLegacy) {
+              // If stream exists in legacy map but not WebRTC map, copy it
+              if (!streamExistsInWebRTC && streamExistsInLegacy) {
+                console.log(`Copying stream ${joinStreamId} from legacy to WebRTC map`);
+                webrtcActiveStreams.set(joinStreamId, { 
+                  hostId: activeStreams.get(joinStreamId)!.hostId, 
+                  viewers: new Set() 
+                });
+              }
+              
+              // Get the stream from the WebRTC map
               const stream = webrtcActiveStreams.get(joinStreamId)!;
               stream.viewers.add(connectionId);
               
@@ -279,6 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               console.log(`Viewer ${connectionId} joined stream ${joinStreamId}`);
             } else {
+              console.log(`Stream not found: ${joinStreamId}`);
               ws.send(JSON.stringify({ 
                 type: 'stream-not-found' 
               }));
@@ -601,7 +617,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate a unique stream ID
       const streamId = uuidv4();
+      
+      // Add to both stream maps to ensure compatibility
+      webrtcActiveStreams.set(streamId, { hostId: "", viewers: new Set() });
       activeStreams.set(streamId, { hostId: "", viewers: new Set() });
+      
+      console.log(`Created new WebRTC stream with ID: ${streamId}`);
       
       // If we have a valid user ID, try to store the stream in the database too
       if (userId && userId > 0) {
@@ -612,6 +633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: `Live stream by ${userName}`,
             streamKey: streamId
           });
+          console.log(`Saved stream ${streamId} to database for user ${userId}`);
         } catch (dbError) {
           console.warn("Could not save stream to database:", dbError);
           // Continue anyway, since we've already created the in-memory stream
@@ -636,10 +658,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebRTC Stream API endpoint to check if a stream exists
   app.get("/api/streams/webrtc/:streamId", (req, res) => {
     const { streamId } = req.params;
-    const streamExists = activeStreams.has(streamId);
+    // Check both activeStreams and webrtcActiveStreams
+    const streamExists = activeStreams.has(streamId) || webrtcActiveStreams.has(streamId);
     
     if (streamExists) {
-      const stream = activeStreams.get(streamId)!;
+      // Prioritize webrtcActiveStreams since that's used by the WebRTC implementation
+      const stream = webrtcActiveStreams.has(streamId) 
+        ? webrtcActiveStreams.get(streamId)! 
+        : activeStreams.get(streamId)!;
+      
       return res.json({
         success: true,
         streamId,

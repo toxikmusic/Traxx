@@ -79,11 +79,29 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       }
     }
     
-    const ws = new WebSocket(wsURL);
-    wsRef.current = ws;
-    
-    // Setup WebSocket event handlers
-    ws.onopen = () => {
+    // Try to connect to WebSocket with proper error handling
+    try {
+      const ws = new WebSocket(wsURL);
+      wsRef.current = ws;
+      
+      // Set a connection timeout to handle potential connection issues
+      const connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.log("WebSocket connection timeout - cleaning up");
+          // Manually trigger close handler and cleanup
+          if (ws.readyState !== WebSocket.CLOSED) {
+            ws.close();
+          }
+        }
+      }, 5000); // 5 second timeout
+      
+      // Clear timeout when connection succeeds
+      ws.addEventListener('open', () => {
+        clearTimeout(connectionTimeout);
+      });
+      
+      // Setup WebSocket event handlers
+      ws.onopen = () => {
       console.log("WebSocket connection established");
       
       // For viewers, join the stream automatically if provided
@@ -105,7 +123,7 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       }
     };
     
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent) => {
       try {
         const message = JSON.parse(event.data);
         console.log("WebSocket message received:", message.type);
@@ -146,7 +164,7 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
       }
     };
     
-    ws.onerror = (error) => {
+    ws.onerror = (error: Event) => {
       console.error("WebSocket error:", error);
       toast({
         title: "Connection Error",
@@ -174,6 +192,13 @@ const LiveStream = ({ initialStreamId, userId, userName }: LiveStreamProps) => {
         }, 3000);
       }
     };
+    } catch (error) {
+      console.error("Error in WebSocket setup:", error);
+      setTimeout(() => {
+        console.log("Attempting to reconnect after WebSocket setup error...");
+        setupWebSocket();
+      }, 5000);
+    }
   };
   
   // Initialize WebRTC peer connections
