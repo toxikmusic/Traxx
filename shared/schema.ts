@@ -25,7 +25,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true, // Added email to the insert schema
   displayName: true,
   bio: true,
-  profileImageUrl: true
+  profileImageUrl: true,
+  isStreaming: true // Added isStreaming for stream status updates
 });
 
 // User Settings model
@@ -71,7 +72,8 @@ export const insertStreamSchema = createInsertSchema(streams).pick({
   thumbnailUrl: true,
   streamKey: true,
   category: true,
-  tags: true
+  tags: true,
+  isLive: true
 });
 
 // Track model

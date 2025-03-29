@@ -222,7 +222,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const webrtcWss = new WebSocketServer({ noServer: true });
 
   // Store active streams for WebRTC - make this global outside the connection handler
-  const webrtcActiveStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
+  const webrtcActiveStreams = new Map<string, { 
+    hostId: string; 
+    viewers: Set<string>;
+    userId?: number;
+    streamKey?: string;
+  }>();
     
   // Set up the WebRTC WebSocket server
   webrtcWss.on('connection', (ws) => {
@@ -242,7 +247,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (!webrtcActiveStreams.has(streamId)) {
               webrtcActiveStreams.set(streamId, { 
                 hostId: connectionId, 
-                viewers: new Set() 
+                viewers: new Set(),
+                userId: undefined, // Will be populated when available
+                streamKey: undefined // Will be populated when available
               });
             } else {
               const stream = webrtcActiveStreams.get(streamId)!;
@@ -264,7 +271,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`Copying stream ${joinStreamId} from legacy to WebRTC map`);
                 webrtcActiveStreams.set(joinStreamId, { 
                   hostId: activeStreams.get(joinStreamId)!.hostId, 
-                  viewers: new Set() 
+                  viewers: new Set(),
+                  userId: activeStreams.get(joinStreamId)!.userId,
+                  streamKey: activeStreams.get(joinStreamId)!.streamKey
                 });
               }
               
@@ -487,19 +496,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Store active streams with their IDs for the WebRTC implementation
-  const activeStreams = new Map<string, { hostId: string; viewers: Set<string> }>();
+  const activeStreams = new Map<string, { 
+    hostId: string; 
+    viewers: Set<string>;
+    userId?: number;
+    streamKey?: string;
+  }>();
   
   // Setup Socket.IO for WebRTC streams
   io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
     
     // Host starting a stream
-    socket.on("host-stream", ({ streamId }) => {
+    socket.on("host-stream", ({ streamId, userId, streamKey }) => {
       if (!activeStreams.has(streamId)) {
-        activeStreams.set(streamId, { hostId: socket.id, viewers: new Set() });
+        activeStreams.set(streamId, { 
+          hostId: socket.id, 
+          viewers: new Set(),
+          userId: userId, 
+          streamKey: streamKey
+        });
       } else {
         const stream = activeStreams.get(streamId)!;
         stream.hostId = socket.id;
+        if (userId) stream.userId = userId;
+        if (streamKey) stream.streamKey = streamKey;
       }
       
       socket.join(streamId);
@@ -612,39 +633,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebRTC Stream API endpoint for stream creation
   app.post("/api/streams/webrtc", async (req, res) => {
     try {
-      const userId = req.body.userId || 0;
-      const userName = req.body.userName || 'Anonymous';
+      // Require authentication for creating streams
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ 
+          success: false, 
+          message: "Authentication required to create a stream" 
+        });
+      }
       
-      // Generate a unique stream ID
+      const userId = req.user?.id || req.body.userId;
+      const userName = req.user?.username || req.body.userName || 'Anonymous';
+      
+      if (!userId) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "User ID is required" 
+        });
+      }
+      
+      // Generate a unique stream key for secure broadcasting
+      const streamKey = generateStreamKey();
+      
+      // Generate a unique stream ID (separate from the stream key for security)
       const streamId = uuidv4();
       
       // Add to both stream maps to ensure compatibility
-      webrtcActiveStreams.set(streamId, { hostId: "", viewers: new Set() });
-      activeStreams.set(streamId, { hostId: "", viewers: new Set() });
+      webrtcActiveStreams.set(streamId, { 
+        hostId: "", 
+        viewers: new Set(),
+        userId: userId,
+        streamKey: streamKey
+      });
+      
+      activeStreams.set(streamId, { 
+        hostId: "", 
+        viewers: new Set(),
+        userId: userId,
+        streamKey: streamKey
+      });
       
       console.log(`Created new WebRTC stream with ID: ${streamId}`);
       
-      // If we have a valid user ID, try to store the stream in the database too
-      if (userId && userId > 0) {
-        try {
-          await storage.createStream({
-            userId,
-            title: `${userName}'s Stream`,
-            description: `Live stream by ${userName}`,
-            streamKey: streamId
-          });
-          console.log(`Saved stream ${streamId} to database for user ${userId}`);
-        } catch (dbError) {
-          console.warn("Could not save stream to database:", dbError);
-          // Continue anyway, since we've already created the in-memory stream
-        }
+      // Always store the stream in the database for persistence
+      try {
+        const streamData = await storage.createStream({
+          userId,
+          title: `${userName}'s Stream`,
+          description: `Live stream by ${userName}`,
+          streamKey: streamKey,
+          isLive: true, // Mark as live immediately
+          category: "Music", // Default category
+          tags: ["live", "webrtc"]
+        });
+        
+        console.log(`Saved stream ${streamId} to database with ID ${streamData.id}`);
+        
+        // Update user's streaming status
+        await storage.updateUser(userId, { isStreaming: true });
+        
+        // Map the database ID to the streamId for later reference
+        const streamIdMapping = new Map();
+        streamIdMapping.set(streamId, streamData.id);
+        
+        return res.json({
+          success: true,
+          streamId,
+          dbStreamId: streamData.id,
+          streamKey: streamKey, // Only sent to the creator
+          shareUrl: `${req.protocol}://${req.get("host")}/stream/${streamId}`
+        });
+      } catch (dbError) {
+        console.error("Failed to save stream to database:", dbError);
+        
+        // Clean up if database save fails
+        webrtcActiveStreams.delete(streamId);
+        activeStreams.delete(streamId);
+        
+        return res.status(500).json({ 
+          success: false,
+          message: "Failed to create stream in database", 
+          error: (dbError as Error).message 
+        });
       }
-      
-      return res.json({
-        success: true,
-        streamId,
-        shareUrl: `${req.protocol}://${req.get("host")}/stream/${streamId}`
-      });
     } catch (error) {
       console.error("Error creating WebRTC stream:", error);
       res.status(500).json({ 
@@ -656,26 +726,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // WebRTC Stream API endpoint to check if a stream exists
-  app.get("/api/streams/webrtc/:streamId", (req, res) => {
+  app.get("/api/streams/webrtc/:streamId", async (req, res) => {
     const { streamId } = req.params;
-    // Check both activeStreams and webrtcActiveStreams
-    const streamExists = activeStreams.has(streamId) || webrtcActiveStreams.has(streamId);
     
-    if (streamExists) {
-      // Prioritize webrtcActiveStreams since that's used by the WebRTC implementation
-      const stream = webrtcActiveStreams.has(streamId) 
-        ? webrtcActiveStreams.get(streamId)! 
-        : activeStreams.get(streamId)!;
+    try {
+      // First check in-memory streams for active ones
+      const inMemoryExists = activeStreams.has(streamId) || webrtcActiveStreams.has(streamId);
       
-      return res.json({
-        success: true,
-        streamId,
-        viewerCount: stream.viewers.size
-      });
-    } else {
+      if (inMemoryExists) {
+        // Prioritize webrtcActiveStreams since that's used by the WebRTC implementation
+        const stream = webrtcActiveStreams.has(streamId) 
+          ? webrtcActiveStreams.get(streamId)! 
+          : activeStreams.get(streamId)!;
+        
+        return res.json({
+          success: true,
+          streamId,
+          viewerCount: stream.viewers.size,
+          isLive: true
+        });
+      } 
+      
+      // If not found in memory, try to find in database by stream key
+      // This is a fallback for streams that might have disconnected but are still valid
+      const dbStreams = await storage.getFeaturedStreams();
+      const dbStreamByKey = dbStreams.find(s => s.streamKey === streamId && s.isLive);
+      
+      if (dbStreamByKey) {
+        console.log(`Stream ${streamId} found in database but not in memory`);
+        
+        // Recreate in-memory stream from database entry
+        webrtcActiveStreams.set(streamId, { 
+          hostId: "", 
+          viewers: new Set(),
+          userId: dbStreamByKey.userId,
+          streamKey: dbStreamByKey.streamKey || streamId
+        });
+        
+        return res.json({
+          success: true,
+          streamId,
+          dbStreamId: dbStreamByKey.id,
+          viewerCount: 0, // No viewers yet since we just restored it
+          isLive: true
+        });
+      }
+      
+      // Stream not found in memory or database
       return res.status(404).json({
         success: false,
         message: "Stream not found"
+      });
+    } catch (error) {
+      console.error("Error checking stream:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error checking stream status"
       });
     }
   });
