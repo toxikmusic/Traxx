@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], user);
       toast({
         title: "Registration successful",
-        description: `Welcome to BeatStream, ${user.displayName}!`,
+        description: `Welcome to Traxx, ${user.displayName}!`,
       });
     },
     onError: (error: Error) => {
