@@ -10,7 +10,7 @@ import * as dotenv from 'dotenv';
 import axios from 'axios';
 
 // Load environment variables from .env.production
-dotenv.config({ path: '.env.production' });
+dotenv.config({ path: '.env' });
 
 // Required environment variables for production
 const requiredEnvVars = [
