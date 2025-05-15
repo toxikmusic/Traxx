@@ -21,7 +21,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- Name: comments; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: comments; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.comments (
@@ -37,10 +37,10 @@ CREATE TABLE public.comments (
 );
 
 
-ALTER TABLE public.comments OWNER TO neondb_owner;
+ALTER TABLE public.comments OWNER TO toxik;
 
 --
--- Name: comments_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: comments_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.comments_id_seq
@@ -52,17 +52,17 @@ CREATE SEQUENCE public.comments_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.comments_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.comments_id_seq OWNER TO toxik;
 
 --
--- Name: comments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: comments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.comments_id_seq OWNED BY public.comments.id;
 
 
 --
--- Name: follows; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: follows; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.follows (
@@ -72,10 +72,10 @@ CREATE TABLE public.follows (
 );
 
 
-ALTER TABLE public.follows OWNER TO neondb_owner;
+ALTER TABLE public.follows OWNER TO toxik;
 
 --
--- Name: follows_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: follows_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.follows_id_seq
@@ -87,17 +87,17 @@ CREATE SEQUENCE public.follows_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.follows_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.follows_id_seq OWNER TO toxik;
 
 --
--- Name: follows_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: follows_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.follows_id_seq OWNED BY public.follows.id;
 
 
 --
--- Name: genres; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: genres; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.genres (
@@ -106,10 +106,10 @@ CREATE TABLE public.genres (
 );
 
 
-ALTER TABLE public.genres OWNER TO neondb_owner;
+ALTER TABLE public.genres OWNER TO toxik;
 
 --
--- Name: genres_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: genres_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.genres_id_seq
@@ -121,17 +121,17 @@ CREATE SEQUENCE public.genres_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.genres_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.genres_id_seq OWNER TO toxik;
 
 --
--- Name: genres_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: genres_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.genres_id_seq OWNED BY public.genres.id;
 
 
 --
--- Name: likes; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: likes; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.likes (
@@ -143,10 +143,10 @@ CREATE TABLE public.likes (
 );
 
 
-ALTER TABLE public.likes OWNER TO neondb_owner;
+ALTER TABLE public.likes OWNER TO toxik;
 
 --
--- Name: likes_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: likes_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.likes_id_seq
@@ -158,17 +158,17 @@ CREATE SEQUENCE public.likes_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.likes_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.likes_id_seq OWNER TO toxik;
 
 --
--- Name: likes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: likes_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.likes_id_seq OWNED BY public.likes.id;
 
 
 --
--- Name: posts; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: posts; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.posts (
@@ -186,10 +186,10 @@ CREATE TABLE public.posts (
 );
 
 
-ALTER TABLE public.posts OWNER TO neondb_owner;
+ALTER TABLE public.posts OWNER TO toxik;
 
 --
--- Name: posts_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: posts_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.posts_id_seq
@@ -201,17 +201,17 @@ CREATE SEQUENCE public.posts_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.posts_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.posts_id_seq OWNER TO toxik;
 
 --
--- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: posts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.posts_id_seq OWNED BY public.posts.id;
 
 
 --
--- Name: session; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: session; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.session (
@@ -221,10 +221,10 @@ CREATE TABLE public.session (
 );
 
 
-ALTER TABLE public.session OWNER TO neondb_owner;
+ALTER TABLE public.session OWNER TO toxik;
 
 --
--- Name: streams; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: streams; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.streams (
@@ -243,10 +243,10 @@ CREATE TABLE public.streams (
 );
 
 
-ALTER TABLE public.streams OWNER TO neondb_owner;
+ALTER TABLE public.streams OWNER TO toxik;
 
 --
--- Name: streams_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: streams_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.streams_id_seq
@@ -258,17 +258,17 @@ CREATE SEQUENCE public.streams_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.streams_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.streams_id_seq OWNER TO toxik;
 
 --
--- Name: streams_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: streams_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.streams_id_seq OWNED BY public.streams.id;
 
 
 --
--- Name: tracks; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: tracks; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.tracks (
@@ -286,10 +286,10 @@ CREATE TABLE public.tracks (
 );
 
 
-ALTER TABLE public.tracks OWNER TO neondb_owner;
+ALTER TABLE public.tracks OWNER TO toxik;
 
 --
--- Name: tracks_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: tracks_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.tracks_id_seq
@@ -301,17 +301,17 @@ CREATE SEQUENCE public.tracks_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.tracks_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.tracks_id_seq OWNER TO toxik;
 
 --
--- Name: tracks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: tracks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.tracks_id_seq OWNED BY public.tracks.id;
 
 
 --
--- Name: user_settings; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: user_settings; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.user_settings (
@@ -326,10 +326,10 @@ CREATE TABLE public.user_settings (
 );
 
 
-ALTER TABLE public.user_settings OWNER TO neondb_owner;
+ALTER TABLE public.user_settings OWNER TO toxik;
 
 --
--- Name: user_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: user_settings_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.user_settings_id_seq
@@ -341,17 +341,17 @@ CREATE SEQUENCE public.user_settings_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.user_settings_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.user_settings_id_seq OWNER TO toxik;
 
 --
--- Name: user_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: user_settings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.user_settings_id_seq OWNED BY public.user_settings.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: users; Type: TABLE; Schema: public; Owner: toxik
 --
 
 CREATE TABLE public.users (
@@ -367,10 +367,10 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO neondb_owner;
+ALTER TABLE public.users OWNER TO toxik;
 
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: neondb_owner
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: toxik
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -382,80 +382,80 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO neondb_owner;
+ALTER SEQUENCE public.users_id_seq OWNER TO toxik;
 
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: neondb_owner
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: toxik
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: comments id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: comments id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.comments_id_seq'::regclass);
 
 
 --
--- Name: follows id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: follows id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.follows ALTER COLUMN id SET DEFAULT nextval('public.follows_id_seq'::regclass);
 
 
 --
--- Name: genres id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: genres id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.genres ALTER COLUMN id SET DEFAULT nextval('public.genres_id_seq'::regclass);
 
 
 --
--- Name: likes id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: likes id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.likes ALTER COLUMN id SET DEFAULT nextval('public.likes_id_seq'::regclass);
 
 
 --
--- Name: posts id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: posts id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.posts ALTER COLUMN id SET DEFAULT nextval('public.posts_id_seq'::regclass);
 
 
 --
--- Name: streams id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: streams id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.streams ALTER COLUMN id SET DEFAULT nextval('public.streams_id_seq'::regclass);
 
 
 --
--- Name: tracks id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: tracks id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.tracks ALTER COLUMN id SET DEFAULT nextval('public.tracks_id_seq'::regclass);
 
 
 --
--- Name: user_settings id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: user_settings id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.user_settings ALTER COLUMN id SET DEFAULT nextval('public.user_settings_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: neondb_owner
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Data for Name: comments; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: comments; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.comments (id, user_id, content_id, content_type, text, created_at, updated_at, like_count, parent_id) FROM stdin;
@@ -463,7 +463,7 @@ COPY public.comments (id, user_id, content_id, content_type, text, created_at, u
 
 
 --
--- Data for Name: follows; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: follows; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.follows (id, follower_id, followed_id) FROM stdin;
@@ -472,7 +472,7 @@ COPY public.follows (id, follower_id, followed_id) FROM stdin;
 
 
 --
--- Data for Name: genres; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: genres; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.genres (id, name) FROM stdin;
@@ -490,7 +490,7 @@ COPY public.genres (id, name) FROM stdin;
 
 
 --
--- Data for Name: likes; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: likes; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.likes (id, user_id, content_id, content_type, created_at) FROM stdin;
@@ -500,7 +500,7 @@ COPY public.likes (id, user_id, content_id, content_type, created_at) FROM stdin
 
 
 --
--- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: posts; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.posts (id, user_id, title, content, image_url, like_count, comment_count, post_type, created_at, updated_at, tags) FROM stdin;
@@ -509,7 +509,7 @@ COPY public.posts (id, user_id, title, content, image_url, like_count, comment_c
 
 
 --
--- Data for Name: session; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: session; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.session (sid, sess, expire) FROM stdin;
@@ -530,7 +530,7 @@ mn0VqROG9q6qX57-uzx3F0-uhg5u5MnL	{"cookie":{"originalMaxAge":2592000000,"expires
 
 
 --
--- Data for Name: streams; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: streams; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.streams (id, user_id, title, description, thumbnail_url, is_live, viewer_count, started_at, category, tags, ended_at, stream_key) FROM stdin;
@@ -538,7 +538,7 @@ COPY public.streams (id, user_id, title, description, thumbnail_url, is_live, vi
 
 
 --
--- Data for Name: tracks; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: tracks; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.tracks (id, user_id, title, artist_name, cover_url, audio_url, duration, play_count, like_count, uploaded_at, genre) FROM stdin;
@@ -548,7 +548,7 @@ COPY public.tracks (id, user_id, title, artist_name, cover_url, audio_url, durat
 
 
 --
--- Data for Name: user_settings; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: user_settings; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.user_settings (id, user_id, ui_color, enable_autoplay, default_sort_type, created_at, updated_at, high_contrast_mode) FROM stdin;
@@ -558,7 +558,7 @@ COPY public.user_settings (id, user_id, ui_color, enable_autoplay, default_sort_
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: toxik
 --
 
 COPY public.users (id, username, password, display_name, bio, profile_image_url, is_streaming, follower_count, created_at) FROM stdin;
@@ -568,70 +568,70 @@ COPY public.users (id, username, password, display_name, bio, profile_image_url,
 
 
 --
--- Name: comments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: comments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.comments_id_seq', 1, false);
 
 
 --
--- Name: follows_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: follows_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.follows_id_seq', 1, true);
 
 
 --
--- Name: genres_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: genres_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.genres_id_seq', 40, true);
 
 
 --
--- Name: likes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: likes_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.likes_id_seq', 4, true);
 
 
 --
--- Name: posts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: posts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.posts_id_seq', 1, true);
 
 
 --
--- Name: streams_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: streams_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.streams_id_seq', 10, true);
 
 
 --
--- Name: tracks_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: tracks_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.tracks_id_seq', 2, true);
 
 
 --
--- Name: user_settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: user_settings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.user_settings_id_seq', 2, true);
 
 
 --
--- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: neondb_owner
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: toxik
 --
 
 SELECT pg_catalog.setval('public.users_id_seq', 2, true);
 
 
 --
--- Name: comments comments_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: comments comments_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.comments
@@ -639,7 +639,7 @@ ALTER TABLE ONLY public.comments
 
 
 --
--- Name: follows follows_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: follows follows_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.follows
@@ -647,7 +647,7 @@ ALTER TABLE ONLY public.follows
 
 
 --
--- Name: genres genres_name_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: genres genres_name_key; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.genres
@@ -655,7 +655,7 @@ ALTER TABLE ONLY public.genres
 
 
 --
--- Name: genres genres_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: genres genres_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.genres
@@ -663,7 +663,7 @@ ALTER TABLE ONLY public.genres
 
 
 --
--- Name: likes likes_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: likes likes_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.likes
@@ -671,7 +671,7 @@ ALTER TABLE ONLY public.likes
 
 
 --
--- Name: posts posts_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: posts posts_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.posts
@@ -679,7 +679,7 @@ ALTER TABLE ONLY public.posts
 
 
 --
--- Name: session session_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: session session_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.session
@@ -687,7 +687,7 @@ ALTER TABLE ONLY public.session
 
 
 --
--- Name: streams streams_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: streams streams_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.streams
@@ -695,7 +695,7 @@ ALTER TABLE ONLY public.streams
 
 
 --
--- Name: tracks tracks_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: tracks tracks_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.tracks
@@ -703,7 +703,7 @@ ALTER TABLE ONLY public.tracks
 
 
 --
--- Name: user_settings user_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: user_settings user_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.user_settings
@@ -711,7 +711,7 @@ ALTER TABLE ONLY public.user_settings
 
 
 --
--- Name: user_settings user_settings_user_id_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: user_settings user_settings_user_id_key; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.user_settings
@@ -719,7 +719,7 @@ ALTER TABLE ONLY public.user_settings
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.users
@@ -727,7 +727,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: toxik
 --
 
 ALTER TABLE ONLY public.users
@@ -735,7 +735,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: IDX_session_expire; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: IDX_session_expire; Type: INDEX; Schema: public; Owner: toxik
 --
 
 CREATE INDEX "IDX_session_expire" ON public.session USING btree (expire);
