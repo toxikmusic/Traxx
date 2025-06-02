@@ -4,7 +4,7 @@ const path = require('path');
 
 // Create a connection to the database
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
+  connectionString: postgres://toxik:lJ4-gX6=zP7=jG9+eA9_@traxx-db-1wl46-postgresql.traxx-db-1wl46.svc.cluster.local:5432/traxx-db
 });
 
 async function runMigration() {
